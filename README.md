@@ -188,7 +188,7 @@ jobs:
 
 ## SonarQube Cloud
 
-CI-based analysis uses `sonar-project.properties` for project
+CI-based analysis uses `skill-audit/sonar-project.properties` for project
 `nfma_skill-audit`. Automatic Analysis must be disabled under **Administration
 → Analysis Method** in SonarQube Cloud. Add `SONAR_TOKEN` as both an Actions
 secret and a Dependabot secret; the workflow type-checks, tests with LCOV
