@@ -12,29 +12,11 @@ When asked to make changes to skill-audit:
 2. **Build after changes**: `npm run build`
 3. **Check for lint errors**: Ensure no TypeScript errors
 
-### Publishing New Versions
+### Distribution Policy
 
-When asked to publish a new version:
-
-1. **Option A - Automated (Preferred)**
-   - Commit with conventional format: `feat:`, `fix:`, `BREAKING CHANGE:`
-   - Push to main
-   - Auto Release workflow handles versioning and publishing
-
-2. **Option B - Manual**
-   ```bash
-   cd skill-audit
-   npm version minor -m "release: v%s"  # or patch/major
-   npm run build
-   npm publish --access public
-   git push origin main --follow-tags
-   ```
-
-### Troubleshooting
-
-- **EOTP error**: npm token requires 2FA - regenerate at npm website without 2FA
-- **Version mismatch**: Delete and recreate git tag on correct commit
-- **Publish fails**: Check GitHub secret `NPM_TOKEN` is valid
+This fork is distributed from Git and must not be published to npm. Do not run
+`npm publish` or add npm publishing or automatic release workflows. Validate
+changes locally, then use the repository's normal Git review process.
 
 ## Security Auditing Context
 
@@ -48,5 +30,3 @@ When using skill-audit to audit other skills:
 ## Reference
 
 - `references/postinstall-safety.md` - Documentation pattern for safe postinstall scripts
-- `.github/workflows/release.yml` - Auto Release workflow
-- `.github/workflows/publish.yml` - npm publish workflow
