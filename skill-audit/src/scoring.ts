@@ -33,6 +33,18 @@ export interface RiskScore {
   asi: Record<string, number>;
 }
 
+export function groupSecurityFindings(findings: Finding[]): {
+  securityFindings: Finding[];
+  piiFindings: Finding[];
+  complianceFindings: Finding[];
+} {
+  return {
+    securityFindings: findings.filter(finding => finding.category !== "PII" && finding.category !== "COMP"),
+    piiFindings: findings.filter(finding => finding.category === "PII"),
+    complianceFindings: findings.filter(finding => finding.category === "COMP"),
+  };
+}
+
 export function calculateRiskScore(findings: Finding[]): RiskScore {
   const breakdown = { critical: 0, high: 0, medium: 0, low: 0 };
   const categories: Record<string, number> = {};
@@ -125,7 +137,7 @@ export function createAuditResult(
 
 /**
  * Create grouped audit result for layered output
- * Spec findings drive the decision to block, security/intel are warnings
+ * Create a weighted result across spec, security, PII, compliance, and intelligence findings
  */
 export function createGroupedAuditResult(
   skill: SkillInfo,
@@ -136,7 +148,7 @@ export function createGroupedAuditResult(
   complianceFindings: Finding[],
   intelFindings: Finding[]
 ): GroupedAuditResult {
-  // Spec findings get lower weight - they're blockers but not security-critical
+  // Spec findings get lower weight than security-critical findings
   const specScore = calculateRiskScore(specFindings);
   const securityScore = calculateRiskScore(securityFindings);
   const piiScore = calculateRiskScore(piiFindings);
@@ -180,8 +192,8 @@ export function hasBlockingSpecErrors(findings: Finding[]): boolean {
 }
 
 /**
- * Check if security findings should block (critical severity)
+ * Check if security findings should block (high or critical severity)
  */
 export function hasBlockingSecurityFindings(findings: Finding[]): boolean {
-  return findings.some(f => f.severity === "critical");
+  return findings.some(f => f.severity === "critical" || f.severity === "high");
 }

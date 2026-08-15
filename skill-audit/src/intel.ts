@@ -78,6 +78,8 @@ const FETCH_TIMEOUT_MS = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000; // Base delay for exponential backoff
 
+type CacheSource = keyof typeof MAX_CACHE_AGE_DAYS;
+
 // Map internal ecosystem names to GitHub GraphQL enum values
 const GHSA_ECOSYSTEM_MAP: Record<string, string> = {
   'npm': 'NPM',
@@ -109,36 +111,46 @@ function ensureCacheDir(): void {
 }
 
 /**
- * Fetch with retry and exponential backoff
+ * Fetch and parse JSON with retry and exponential backoff
  */
-async function fetchWithRetry(
+async function fetchJsonWithRetry<T>(
   url: string,
   timeoutMs: number = FETCH_TIMEOUT_MS,
   options: RequestInit = {}
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+): Promise<T> {
+  const externalSignal = options.signal ?? undefined;
+  const { signal: _signal, ...requestOptions } = options;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    throwIfFetchAborted(externalSignal);
+
+    const controller = new AbortController();
+    const forwardAbort = () => controller.abort(externalSignal?.reason);
+    externalSignal?.addEventListener('abort', forwardAbort, { once: true });
+    if (externalSignal?.aborted) forwardAbort();
+    const timeoutId = setTimeout(
+      () => controller.abort(new Error(`Request timed out after ${timeoutMs}ms`)),
+      timeoutMs
+    );
+
     try {
       const response = await fetch(url, {
-        ...options,
+        ...requestOptions,
         signal: controller.signal,
         headers: {
           'User-Agent': 'skill-audit/0.1.0 (Vulnerability Intelligence Scanner)',
-          ...options.headers
+          ...requestOptions.headers
         }
       });
-      clearTimeout(timeoutId);
       
-      if (response.ok) {
-        return response;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-      
-      console.error(`Fetch failed (${url}): HTTP ${response.status}`);
+
+      return await response.json() as T;
     } catch (error) {
-      clearTimeout(timeoutId);
-      
+      throwIfFetchAborted(externalSignal);
+
       if (attempt === MAX_RETRIES - 1) {
         throw error; // Last attempt - rethrow
       }
@@ -146,11 +158,40 @@ async function fetchWithRetry(
       // Exponential backoff: 1s, 2s, 4s
       const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
       console.error(`Fetch failed (${url}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await waitForRetry(delay, externalSignal);
+    } finally {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', forwardAbort);
     }
   }
   
   throw new Error('Max retries exceeded');
+}
+
+function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
+  throwIfFetchAborted(signal);
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, delay);
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onAbort);
+      reject(fetchAbortReason(signal));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
+}
+
+function throwIfFetchAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw fetchAbortReason(signal);
+}
+
+function fetchAbortReason(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error ? signal.reason : new Error('Fetch aborted');
 }
 
 /**
@@ -211,23 +252,35 @@ function recordFetchResult(source: string, count: number, durationMs: number, er
  * Get cache file path for a source
  */
 function getCachePath(source: string): string {
+  const normalizedSource = normalizeCacheSource(source);
   ensureCacheDir();
-  return join(CACHE_DIR, `${source.toLowerCase()}.jsonl`);
+  return join(CACHE_DIR, `${normalizedSource}.jsonl`);
 }
 
 /**
  * Get metadata file path
  */
 function getMetaPath(source: string): string {
+  const normalizedSource = normalizeCacheSource(source);
   ensureCacheDir();
-  return join(CACHE_DIR, `${source.toLowerCase()}.meta.json`);
+  return join(CACHE_DIR, `${normalizedSource}.meta.json`);
+}
+
+function normalizeCacheSource(source: string): CacheSource {
+  const normalizedSource = source.toLowerCase();
+  if (!Object.hasOwn(MAX_CACHE_AGE_DAYS, normalizedSource)) {
+    throw new Error(`Unsupported cache source: ${source}`);
+  }
+
+  return normalizedSource as CacheSource;
 }
 
 /**
  * Check if cache is stale and return age info
  */
 export function isCacheStale(source: string): { stale: boolean; age?: number; warn: boolean } {
-  const metaPath = getMetaPath(source);
+  const normalizedSource = normalizeCacheSource(source);
+  const metaPath = getMetaPath(normalizedSource);
 
   if (!existsSync(metaPath)) {
     return { stale: true, warn: false };
@@ -241,7 +294,7 @@ export function isCacheStale(source: string): { stale: boolean; age?: number; wa
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
     // Use source-specific max age
-    const maxAge = MAX_CACHE_AGE_DAYS[source.toLowerCase()] || MAX_CACHE_AGE_DAYS.osv;
+    const maxAge = MAX_CACHE_AGE_DAYS[normalizedSource];
 
     return { 
       stale: ageDays > maxAge, 
@@ -257,8 +310,9 @@ export function isCacheStale(source: string): { stale: boolean; age?: number; wa
  * Save advisory records to cache
  */
 export function saveToCache(source: string, records: AdvisoryRecord[]): void {
-  const cachePath = getCachePath(source);
-  const metaPath = getMetaPath(source);
+  const normalizedSource = normalizeCacheSource(source);
+  const cachePath = getCachePath(normalizedSource);
+  const metaPath = getMetaPath(normalizedSource);
 
   // Save records as JSONL
   const lines = records.map(r => JSON.stringify(r)).join('\n');
@@ -266,7 +320,7 @@ export function saveToCache(source: string, records: AdvisoryRecord[]): void {
 
   // Save metadata
   const meta: CacheMetadata = {
-    source,
+    source: normalizedSource,
     fetchedAt: new Date().toISOString(),
     recordCount: records.length
   };
@@ -297,7 +351,15 @@ function loadFromCache(source: string): AdvisoryRecord[] {
  */
 export async function queryOSV(ecosystem: string, packageName: string): Promise<AdvisoryRecord[]> {
   try {
-    const response = await fetchWithRetry('https://api.osv.dev/v1/query', FETCH_TIMEOUT_MS, {
+    const data = await fetchJsonWithRetry<{ vulns?: Array<{
+      id: string;
+      aliases?: string[];
+      severity?: Array<{ type: string; score: string }>;
+      published?: string;
+      modified?: string;
+      summary?: string;
+      references?: Array<{ type: string; url: string }>;
+    }> }>('https://api.osv.dev/v1/query', FETCH_TIMEOUT_MS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -309,21 +371,6 @@ export async function queryOSV(ecosystem: string, packageName: string): Promise<
         }
       })
     });
-
-    if (!response.ok) {
-      console.error(`OSV API error: ${response.status}`);
-      return [];
-    }
-
-    const data = await response.json() as { vulns?: Array<{
-      id: string;
-      aliases?: string[];
-      severity?: Array<{ type: string; score: string }>;
-      published?: string;
-      modified?: string;
-      summary?: string;
-      references?: Array<{ type: string; url: string }>;
-    }> };
 
     if (!data.vulns) {
       return [];
@@ -389,7 +436,23 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
   }
 
   try {
-    const response = await fetchWithRetry('https://api.github.com/graphql', FETCH_TIMEOUT_MS, {
+    const data = await fetchJsonWithRetry<{
+      data?: {
+        securityVulnerabilities?: {
+          nodes?: Array<{
+            advisory?: {
+              ghsaId: string;
+              summary: string;
+              severity: string;
+              publishedAt: string;
+              identifiers?: Array<{ type: string; value: string }>;
+            };
+            severity: string;
+            vulnerableVersionRange: string;
+          }>;
+        };
+      };
+    }>('https://api.github.com/graphql', FETCH_TIMEOUT_MS, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -421,29 +484,6 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
       })
     });
 
-    if (!response.ok) {
-      console.error(`GHSA API error: ${response.status}`);
-      return [];
-    }
-
-    const data = await response.json() as {
-      data?: {
-        securityVulnerabilities?: {
-          nodes?: Array<{
-            advisory?: {
-              ghsaId: string;
-              summary: string;
-              severity: string;
-              publishedAt: string;
-              identifiers?: Array<{ type: string; value: string }>;
-            };
-            severity: string;
-            vulnerableVersionRange: string;
-          }>;
-        };
-      };
-    };
-
     if (!data.data?.securityVulnerabilities?.nodes) {
       return [];
     }
@@ -468,13 +508,15 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
 /**
  * Fetch CISA KEV (Known Exploited Vulnerabilities)
  */
-export async function fetchKEV(): Promise<AdvisoryRecord[]> {
+export async function fetchKEV(
+  signal?: AbortSignal,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
   
   try {
-    const response = await fetchWithRetry(url);
-    const data = await response.json() as {
+    const data = await fetchJsonWithRetry<{
       title?: string;
       catalogVersion?: string;
       dateReleased?: string;
@@ -488,7 +530,7 @@ export async function fetchKEV(): Promise<AdvisoryRecord[]> {
         reference?: string;
         knownRansomwareCampaignUse?: string;
       }>;
-    };
+    }>(url, timeoutMs, { signal });
 
     if (!data.vulnerabilities) {
       recordFetchResult('kev', 0, Date.now() - startTime, 'No vulnerabilities in response');
@@ -508,6 +550,8 @@ export async function fetchKEV(): Promise<AdvisoryRecord[]> {
     recordFetchResult('kev', records.length, Date.now() - startTime);
     return records;
   } catch (error) {
+    if (signal?.aborted) return [];
+
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     recordFetchResult('kev', 0, Date.now() - startTime, errorMsg);
     console.error(`KEV fetch failed:`, error);
@@ -518,13 +562,15 @@ export async function fetchKEV(): Promise<AdvisoryRecord[]> {
 /**
  * Fetch EPSS scores
  */
-export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
+export async function fetchEPSS(
+  signal?: AbortSignal,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const url = 'https://api.first.org/data/v1/epss?limit=500&sort=epss';
 
   try {
-    const response = await fetchWithRetry(url);
-    const data = await response.json() as {
+    const data = await fetchJsonWithRetry<{
       status: string;
       total: number;
       limit: number;
@@ -534,7 +580,7 @@ export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
         percentile: string;
         date: string;
       }>
-    };
+    }>(url, timeoutMs, { signal });
 
     if (!data.data) {
       recordFetchResult('epss', 0, Date.now() - startTime, 'No data in response');
@@ -553,6 +599,8 @@ export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
     recordFetchResult('epss', records.length, Date.now() - startTime);
     return records;
   } catch (error) {
+    if (signal?.aborted) return [];
+
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     recordFetchResult('epss', 0, Date.now() - startTime, errorMsg);
     console.error(`EPSS fetch failed:`, error);
@@ -565,7 +613,10 @@ export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
  * Uses NVD API v2.0 with CVSS scoring
  * API: https://nvd.nist.gov/developers/vulnerabilities
  */
-export async function fetchNVD(): Promise<AdvisoryRecord[]> {
+export async function fetchNVD(
+  signal?: AbortSignal,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const apiKey = process.env.NVD_API_KEY;
 
@@ -589,8 +640,7 @@ export async function fetchNVD(): Promise<AdvisoryRecord[]> {
       headers['apiKey'] = apiKey;
     }
 
-    const response = await fetchWithRetry(url, FETCH_TIMEOUT_MS, { headers });
-    const data = await response.json() as {
+    const data = await fetchJsonWithRetry<{
       resultsPerPage: number;
       startIndex: number;
       totalResults: number;
@@ -637,7 +687,7 @@ export async function fetchNVD(): Promise<AdvisoryRecord[]> {
           }>;
         }
       }>;
-    };
+    }>(url, timeoutMs, { headers, signal });
 
     if (!data.vulnerabilities) {
       recordFetchResult('nvd', 0, Date.now() - startTime, 'No vulnerabilities in response');
@@ -686,6 +736,8 @@ export async function fetchNVD(): Promise<AdvisoryRecord[]> {
     recordFetchResult('nvd', records.length, Date.now() - startTime);
     return records;
   } catch (error) {
+    if (signal?.aborted) return [];
+
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     recordFetchResult('nvd', 0, Date.now() - startTime, errorMsg);
     console.error(`NVD fetch failed:`, error);
@@ -928,7 +980,7 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
       success: true,
       message: 'OSV uses on-demand API queries (not bulk download). Use OSV CLI for offline scanning.'
     };
-    console.log('   ℹ️  OSV: Query-based API (use --update-db for caching)');
+    console.log('   ℹ️  OSV: Query-based API (use OSV CLI for offline scanning)');
 
     // Save metadata
     const metadata = {

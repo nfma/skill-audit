@@ -4,16 +4,17 @@ import { Command } from "commander";
 import { discoverSkills, getGlobalConfig } from "./discover.js";
 import { auditSecurity, SecurityAuditResult } from "./security.js";
 import { validateSkillSpec, SpecValidationResult } from "./spec.js";
-import { createGroupedAuditResult } from "./scoring.js";
+import { createGroupedAuditResult, groupSecurityFindings } from "./scoring.js";
 import { scanDependencies } from "./deps.js";
-import { getKEV, getEPSS, getNVD, isCacheStale, downloadOfflineDB } from "./intel.js";
-import { ensureIntelFeedsFresh } from "./auto-update.js";
+import { getKEV, getEPSS, getNVD, downloadOfflineDB } from "./intel.js";
+import { auditCompliance } from "./compliance.js";
 import { installHook, uninstallHook, getHookStatus, getDefaultHookConfig } from "./hooks.js";
 import { assessShellCommand, diffEnvironmentBaseline, getEnvironmentBaselinePath, reportCommandAssessment, reportEnvironmentBaseline, reportEnvironmentDiff, reportEnvironmentDoctor, runEnvironmentDoctor, writeEnvironmentBaseline } from "./environment.js";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { Finding, GroupedAuditResult } from "./types.js";
+import { reportGroupedResults } from "./grouped-reporter.js";
 
 function getVersion(): string {
   try {
@@ -49,24 +50,29 @@ program
   .option("-j, --json", "Output as JSON")
   .option("-o, --output <file>", "Save report to file (JSON format)")
   .option("-v, --verbose", "Show detailed findings")
-  .option("-t, --threshold <score>", "Fail if risk score exceeds threshold", parseFloat)
+  .option("-t, --threshold <score>", "Risk score threshold (default with --block: 3.0)", parseFloat)
   .option("--no-deps", "Skip dependency scanning (faster)")
+  .option("--compliance", "Run heuristic compliance checks (audit mode only)")
   .option("--mode <mode>", "Audit mode: 'lint', 'audit', 'doctor', 'trust-env', or 'diff-env'", "audit")
   .option("--update-db", "Update advisory intelligence feeds")
   .option("--source <sources...>", "Sources for update-db: kev, epss, nvd, all", ["all"])
-  .option("--strict", "Fail if feeds are stale")
+  .option("--strict", "Exit 1 if a feed update fails (requires --update-db)")
   .option("--quiet", "Suppress non-error output")
-  .option("--download-offline-db <dir>", "Download offline vulnerability databases to directory")
+  .option("--download-offline-db <dir>", "Export vulnerability-feed snapshots to directory")
   .option("--check-command <command>", "Assess whether a shell command should trigger environment safety checks")
   .option("--install-hook", "Install PreToolUse hook for automatic skill auditing")
   .option("--uninstall-hook", "Remove the PreToolUse hook")
   .option("--hook-threshold <score>", "Risk threshold for hook (default: 3.0)", parseFloat)
   .option("--hook-status", "Show current hook status")
-  .option("--block", "Exit with code 1 if threshold exceeded (for hooks)");
+  .option("--block", "Exit with code 1 for high/critical findings or when the threshold is met");
 
 program.parse(process.argv);
 
 const options = program.opts();
+
+if (options.strict && !options.updateDb) {
+  program.error("error: option '--strict' can only be used with '--update-db'");
+}
 
 // Load global config (~/.skill-audit/config.json) and merge with CLI options
 const globalConfig = getGlobalConfig();
@@ -94,7 +100,7 @@ if (options.checkCommand) {
   if (options.block && assessment.environment?.drift) {
     process.exit(1);
   }
-  if (options.block && options.threshold !== undefined && (assessment.environment?.current.riskScore || 0) > options.threshold) {
+  if (options.block && options.threshold !== undefined && (assessment.environment?.current.riskScore || 0) >= options.threshold) {
     process.exit(1);
   }
   process.exit(0);
@@ -167,7 +173,7 @@ if (mode === "doctor") {
     verbose: options.verbose,
     output: options.output,
   });
-  if (options.block && options.threshold !== undefined && result.riskScore > options.threshold) {
+  if (options.block && options.threshold !== undefined && result.riskScore >= options.threshold) {
     process.exit(1);
   }
   process.exit(0);
@@ -190,15 +196,10 @@ if (mode === "diff-env") {
   if (options.block && diff.drift) {
     process.exit(1);
   }
-  if (options.block && options.threshold !== undefined && diff.current.riskScore > options.threshold) {
+  if (options.block && options.threshold !== undefined && diff.current.riskScore >= options.threshold) {
     process.exit(1);
   }
   process.exit(0);
-}
-
-// Auto-update intelligence feeds in background (silent)
-if (mode === "audit") {
-  ensureIntelFeedsFresh(); // Fire and forget - non-blocking
 }
 
 if (!options.json) {
@@ -246,18 +247,18 @@ for (const skill of filteredSkills) {
     }
   }
 
-  const allSecurityFindings = [...securityResult.findings, ...depFindings];
+  const rawComplianceFindings = mode === "audit" && options.compliance && specResult.manifest
+    ? auditCompliance(specResult.manifest, skill.path)
+    : [];
+  const allSecurityFindings = [...securityResult.findings, ...depFindings, ...rawComplianceFindings];
   
-  // NEW: Separate PII and compliance findings
-  const piiFindings = allSecurityFindings.filter(f => f.category === 'PII');
-  const complianceFindings = allSecurityFindings.filter(f => f.category === 'COMP');
-  const otherSecurityFindings = allSecurityFindings.filter(f => !['PII', 'COMP'].includes(f.category));
+  const { securityFindings, piiFindings, complianceFindings } = groupSecurityFindings(allSecurityFindings);
 
   const result = createGroupedAuditResult(
     skill,
     specResult.manifest,
     specResult.findings,
-    otherSecurityFindings,
+    securityFindings,
     piiFindings,
     complianceFindings,
     []
@@ -265,14 +266,15 @@ for (const skill of filteredSkills) {
   results.push(result);
 }
 
-reportGroupedResults(results, {
+const shouldBlock = reportGroupedResults(results, {
   json: options.json,
   output: options.output,
   verbose: options.verbose,
-  threshold: options.threshold,
+  threshold: options.threshold ?? (options.block ? getDefaultHookConfig().threshold : undefined),
   mode,
   block: options.block
 });
+if (shouldBlock) process.exitCode = 1;
 
 async function updateAdvisoryDB(opts: { source: string[]; strict: boolean }) {
   const sources = opts.source.includes("all") ? ["kev", "epss", "nvd"] : opts.source;
@@ -318,110 +320,5 @@ async function updateAdvisoryDB(opts: { source: string[]; strict: boolean }) {
 
   if (opts.strict && hasErrors) {
     process.exit(1);
-  }
-}
-
-interface ReportOptions {
-  json: boolean;
-  output?: string;
-  verbose: boolean;
-  threshold?: number;
-  mode: string;
-  block?: boolean;
-}
-
-function reportGroupedResults(results: GroupedAuditResult[], options: ReportOptions): void {
-  const { json, output, verbose, threshold, mode, block } = options;
-
-  // Export to file if specified
-  if (output) {
-    const report = {
-      generated: new Date().toISOString(),
-      mode,
-      summary: {
-        total: results.length,
-        safe: results.filter(r => r.riskLevel === "safe").length,
-        risky: results.filter(r => r.riskLevel === "risky").length,
-        dangerous: results.filter(r => r.riskLevel === "dangerous").length,
-        malicious: results.filter(r => r.riskLevel === "malicious").length,
-        specIssues: results.filter(r => r.specFindings.length > 0).length,
-        securityIssues: results.filter(r => r.securityFindings.length > 0).length
-      },
-      results
-    };
-    writeFileSync(output, JSON.stringify(report, null, 2));
-    console.log(`\n📄 Report saved to: ${output}`);
-    return;
-  }
-
-  if (json) {
-    console.log(JSON.stringify(results, null, 2));
-    return;
-  }
-
-  let safeCount = 0, riskyCount = 0, dangerousCount = 0, maliciousCount = 0;
-  let specErrors = 0, securityIssues = 0;
-
-  for (const r of results) {
-    if (r.riskLevel === "safe") safeCount++;
-    else if (r.riskLevel === "risky") riskyCount++;
-    else if (r.riskLevel === "dangerous") dangerousCount++;
-    else maliciousCount++;
-
-    if (r.specFindings.length > 0) specErrors++;
-    if (r.securityFindings.length > 0) securityIssues++;
-  }
-
-  console.log(`\n📊 Summary (${mode} mode):`);
-  console.log(`   Safe: ${safeCount} | Risky: ${riskyCount} | Dangerous: ${dangerousCount} | Malicious: ${maliciousCount}`);
-  console.log(`   Skills with spec issues: ${specErrors} | Security issues: ${securityIssues}`);
-
-  // Check cache freshness and warn if stale
-  const kevStale = isCacheStale("kev");
-  const epssStale = isCacheStale("epss");
-  const nvdStale = isCacheStale("nvd");
-  if (!options.json && (kevStale.warn || epssStale.warn || nvdStale.warn)) {
-    const ages = [];
-    if (kevStale.age) ages.push(`${kevStale.age.toFixed(1)} days for KEV`);
-    if (epssStale.age) ages.push(`${epssStale.age.toFixed(1)} days for EPSS`);
-    if (nvdStale.age) ages.push(`${nvdStale.age.toFixed(1)} days for NVD`);
-    console.log(`\n⚠️  Vulnerability DB is stale (${ages.join(", ")})`);
-    console.log(`   Run: npx skill-audit --update-db`);
-  }
-
-  if (threshold !== undefined) {
-    const failing = results.filter(r => r.riskScore > threshold);
-    if (failing.length > 0) {
-      console.log(`\n❌ ${failing.length} skills exceed threshold ${threshold}`);
-      for (const f of failing) {
-        console.log(`   - ${f.skill.name}: ${f.riskScore}`);
-      }
-      // Exit with error code if block flag is set
-      if (block) {
-        process.exit(1);
-      }
-    } else {
-      console.log(`\n✅ All skills pass threshold ${threshold}`);
-    }
-  }
-
-  if (verbose) {
-    for (const r of results) {
-      console.log(`\n--- ${r.skill.name} ---`);
-      
-      if (r.specFindings.length > 0) {
-        console.log(`\n📋 Spec Issues (${r.specFindings.length}):`);
-        for (const f of r.specFindings) {
-          console.log(`   [${f.severity.toUpperCase()}] ${f.id}: ${f.message}`);
-        }
-      }
-
-      if (r.securityFindings.length > 0) {
-        console.log(`\n🔒 Security Issues (${r.securityFindings.length}):`);
-        for (const f of r.securityFindings) {
-          console.log(`   [${f.severity.toUpperCase()}] ${f.id}: ${f.message}`);
-        }
-      }
-    }
   }
 }

@@ -127,8 +127,8 @@ skill-audit --uninstall-hook
 1. **Trigger**: When you run `npx skills add <package>`
 2. **Scan**: skill-audit analyzes the skill before installation
 3. **Decision**:
-   - Risk score ≤ 3.0 → Installation proceeds
-   - Risk score > 3.0 → Installation blocked
+   - Risk score < 3.0 with no high/critical spec, security, PII, or intelligence finding → Installation proceeds
+   - Risk score ≥ 3.0 or a high/critical spec, security, PII, or intelligence finding → Installation blocked
 4. **Report**: Detailed findings shown in terminal
 
 ## Usage
@@ -143,8 +143,8 @@ skill-audit -v
 # JSON output for CI
 skill-audit --json > audit-results.json
 
-# Fail if risk score exceeds threshold
-skill-audit --threshold 5.0
+# Exit 1 if risk meets the selected threshold
+skill-audit --threshold 5.0 --block
 
 # Skip dependency scanning (faster)
 skill-audit --no-deps
@@ -267,33 +267,41 @@ Context checks include:
 |------|-------------|---------|
 | `-g, --global` | Audit global skills | ✓ |
 | `-p, --project` | Audit project-level skills | |
-| `--mode <lint|audit|doctor>` | Lint (spec), full audit, or agent environment scan | audit |
-| `-t, --threshold <score>` | Fail if risk > threshold | 7.0 |
+| `-a, --agent <agents...>` | Filter by agent names | |
+| `-x, --exclude-skill <names...>` | Exclude skills by name | |
+| `--mode <mode>` | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env` | audit |
+| `-t, --threshold <score>` | Set the risk threshold used with `--block` | unset (3.0 with `--block`) |
 | `-j, --json` | JSON output | |
 | `-o, --output <file>` | Save to file | |
 | `--no-deps` | Skip dependency scan | |
+| `--compliance` | Run opt-in documentation heuristics in audit mode | |
+| `--update-db` | Update the KEV, EPSS, and NVD maintenance caches | |
+| `--source <sources...>` | Select `kev`, `epss`, `nvd`, or `all` for `--update-db` | all |
+| `--strict` | Exit 1 if a feed update fails; requires `--update-db` | |
+| `--quiet` | Suppress non-error output | |
+| `--download-offline-db <dir>` | Export KEV, EPSS, and NVD snapshots | |
 | `--check-command <command>` | Classify a shell command and check environment drift if sensitive | |
 | `-v, --verbose` | Verbose output | |
 | `--install-hook` | Install PreToolUse hook | |
 | `--uninstall-hook` | Remove PreToolUse hook | |
 | `--hook-threshold <score>` | Hook risk threshold | 3.0 |
 | `--hook-status` | Show hook status | |
-| `--block` | Exit 1 if threshold exceeded | |
+| `--block` | Exit 1 for a high/critical blocking finding or when the threshold is met | |
 
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success (no blocking issues) |
-| 1 | Threshold exceeded or errors |
+| 1 | Blocking finding, threshold met, strict update failure, or command error |
 
 ## Risk Levels
 
 | Level | Score | Icon |
 |-------|-------|------|
-| Safe | 0-3.0 | ✅ |
-| Risky | 3.1-5.0 | ⚠️ |
-| Dangerous | 5.1-7.0 | 🔴 |
+| Safe | 0 | ✅ |
+| Risky | 0.1-3.0 | ⚠️ |
+| Dangerous | 3.1-7.0 | 🔴 |
 | Malicious | 7.1+ | ☠️ |
 
 ## OWASP Agentic Top 10 Mapping
@@ -305,32 +313,28 @@ Context checks include:
 
 ## Vulnerability Intelligence
 
-Feeds are cached locally with automatic freshness checks:
+The maintenance commands can download vulnerability-intelligence snapshots:
 
-| Source | Update Frequency | Cache Lifetime |
-|--------|------------------|----------------|
-| CISA KEV | Daily | 1 day |
-| NIST NVD | Daily | 1 day |
-| FIRST EPSS | Daily | 3 days |
-| OSV.dev | On-query | 7 days |
-| GHSA | On-query | 3 days |
+| Source | Current behavior |
+|--------|------------------|
+| CISA KEV | Downloaded by `--update-db` and `--download-offline-db` |
+| NIST NVD | Downloads CVEs modified in the preceding 24 hours |
+| FIRST EPSS | Downloaded by `--update-db` and `--download-offline-db` |
+| OSV.dev | Queried live by dependency scanning; not cached by `--update-db` |
+| GHSA | Query helper exists but is not wired into ordinary audits |
 
-**Automatic updates:**
-- Runs on `npm install` via `postinstall` hook
-- Daily GitHub Actions workflow (public repos)
+**Feed refresh:**
+- Daily root GitHub Actions workflow maintains a CI cache
 - Manual: `npx skill-audit --update-db`
+- Audits and the informational postinstall script do not refresh feeds in the background
 
-**Stale cache warning:** Audit output warns if feeds are >3 days old.
+**Current audit behavior:** Ordinary audits do not read the KEV, EPSS, or NVD maintenance caches and do not populate `intelFindings` from them. The exported snapshots are not an offline-audit input. Dependency scanning continues to use its configured live scanners and OSV fallback.
 
 ### NVD Synchronization
 
-The `--update-db` command fetches CVEs modified in the last 24 hours only.
-For initial setup or after extended offline periods, run multiple times to build historical data:
+The `--update-db` command fetches CVEs modified in the last 24 hours and replaces the prior NVD cache. It does not build a historical database across repeated runs:
 
 ```bash
-# Multiple updates to build historical data
-skill-audit --update-db
-skill-audit --update-db
 skill-audit --update-db
 ```
 
@@ -352,10 +356,10 @@ Note: NVD API rate limits apply (5 requests/30 sec without API key). Set `NVD_AP
 
 **False positives**: Review finding at file:line, add inline comment explaining legitimate use
 
-**Stale DB warning**: Run `skill-audit --update-db` to refresh KEV/EPSS/OSV feeds
+**Refresh maintenance cache**: Run `skill-audit --update-db` for KEV, EPSS, and NVD
 
 **Skill not found**: Verify `SKILL.md` exists in root or `skills/` directory
 
-**postinstall update fails**: The `--quiet || true` flags ensure install continues even if update fails. Run manually later.
+**Feed refresh fails**: Re-run `skill-audit --update-db`; installation and ordinary audits do not depend on a background refresh.
 
-**Offline mode**: Cached feeds work offline. Re-run audit with existing cache.
+**Offline snapshots**: `--download-offline-db <dir>` exports feed data for external inspection; ordinary audits do not consume these files.

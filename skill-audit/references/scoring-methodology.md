@@ -36,7 +36,7 @@ Category Score = Σ(Finding Score × Finding Weight)
 | **Behavioral Manipulation (ASI09)** | 1.5 | Attempts to manipulate agent behavior |
 | **PII Detection (ASI03)** | 1.5 | Personally Identifiable Information exposure |
 | **PII Exfiltration (PEX)** | 2.0 | PII being sent to external endpoints |
-| **Compliance** | 1.5 | Regulatory framework violations |
+| **Compliance** | 1.5 | Missing compliance-related documentation indicators |
 | **Dependency Vulnerabilities** | 1.0 | CVEs in skill dependencies |
 
 ### Severity Multipliers
@@ -149,7 +149,7 @@ Total: 3.0 + 2.5 + 1.5 = 7.0
 
 The following are tracked but don't affect the numeric score:
 
-- **Vulnerability intelligence staleness**: Warning only, doesn't increase risk score
+- **Maintenance-cache age**: Not consumed by the current audit path or included in its score
 - **Spec format warnings**: Advisory, not blocking
 - **Performance considerations**: Out of scope for security audit
 

@@ -97,7 +97,7 @@
           "message": "Hardcoded GitHub token detected",
           "location": "scripts/deploy.sh:12",
           "matchedPattern": "gh[pousr]_[A-Za-z0-9_]{36,}",
-          "context": "export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "context": "export GITHUB_TOKEN=<redacted GitHub token>",
           "recommendation": "Use environment variables for secrets"
         },
         {
@@ -131,30 +131,7 @@
       "specValid": true
     }
   ],
-  "vulnerabilityDb": {
-    "kev": {
-      "lastUpdated": "2026-03-22T00:00:00Z",
-      "age": 1.0,
-      "status": "fresh"
-    },
-    "nvd": {
-      "lastUpdated": "2026-03-22T00:00:00Z",
-      "age": 1.0,
-      "status": "fresh"
-    },
-    "epss": {
-      "lastUpdated": "2026-03-20T00:00:00Z",
-      "age": 3.0,
-      "status": "warning"
-    },
-    "ghsa": {
-      "lastUpdated": "2026-03-20T00:00:00Z",
-      "age": 3.0,
-      "status": "warning"
-    }
-  },
   "recommendations": [
-    "Run 'npx skill-audit --update-db' to refresh vulnerability feeds",
     "Review and remediate findings for 'writing-skills' before use",
     "Consider splitting 'security-review' SKILL.md into references/"
   ]

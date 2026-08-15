@@ -5,9 +5,7 @@ on:
     branches:
       - develop
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 env:
   ACTIONS_STEP_DEBUG: false
@@ -17,6 +15,9 @@ env:
 jobs:
   beta-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     if: "!contains(github.event.head_commit.message, 'skip release')"
 
     steps:
@@ -90,7 +91,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Pre-release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
         with:
           tag: v${{ steps.version.outputs.version }}
           name: Beta Release v${{ steps.version.outputs.version }}

@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { basename, extname } from "path";
-import { SkillInfo, SkillManifest, Finding } from "./types.js";
+import { SkillInfo, SkillManifest, Finding, FindingCategory } from "./types.js";
 import { resolveSkillPath, getSkillFiles } from "./discover.js";
 import { isDocumentedSafeLifecycleScript } from "./lifecycle-safety.js";
 import { loadAndCompile, hasPatternsFile, getPatternMetadata, CompiledPattern } from "./patterns.js";
@@ -209,16 +209,35 @@ const TRUSTED_PROTOCOLS = ['https:', 'git:'];
 // Helper Functions
 // ============================================================
 
+const CODE_EXTENSIONS = new Set([
+  ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
+  ".py", ".pyw", ".js", ".cjs", ".mjs", ".jsx", ".ts", ".cts", ".mts", ".tsx",
+  ".rb", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp", ".cs", ".php", ".lua", ".pl",
+  ".sql", ".yaml", ".yml", ".json", ".jsonc", ".toml", ".ini", ".cfg", ".conf", ".xml"
+]);
+
+const CODE_FILENAMES = new Set([
+  "dockerfile", "containerfile", "makefile", "justfile", "procfile", ".cursorrules"
+]);
+
+const INSTRUCTION_FILENAMES = new Set([
+  "skill.md", "agents.md", "claude.md", "gemini.md"
+]);
+
 function isCodeFile(filename: string): boolean {
-  const codeExtensions = [".sh", ".bash", ".py", ".js", ".ts", ".tsx", ".jsx", ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".cs", ".php", ".yaml", ".yml"];
-  return codeExtensions.includes(extname(filename).toLowerCase());
+  const normalizedName = basename(filename).toLowerCase();
+  return CODE_EXTENSIONS.has(extname(normalizedName)) || CODE_FILENAMES.has(normalizedName);
+}
+
+function isInstructionFile(filename: string): boolean {
+  return INSTRUCTION_FILENAMES.has(filename.toLowerCase());
 }
 
 function isKnownSafeScript(filePath: string, content: string): boolean {
   return isDocumentedSafeLifecycleScript(filePath, content);
 }
 
-export function getCategoryFromId(id: string): string {
+export function getCategoryFromId(id: string): FindingCategory {
   if (id.startsWith("PROV")) return "PROV";
   if (id.startsWith("PII")) return "PII";
   if (id.startsWith("PEX")) return "PII";
@@ -253,33 +272,33 @@ interface PatternDef {
   message: string;
 }
 
-interface CompiledPatternDef {
-  regex: RegExp;
-  id: string;
-  severity: string;
-  message: string;
-  category: string;
+function normalizeSeverity(severity: string | undefined): Finding["severity"] {
+  if (severity === "critical" || severity === "high" || severity === "medium" || severity === "low" || severity === "info") {
+    return severity;
+  }
+  return "medium";
 }
 
-function scanContent(content: string, file: string, patterns: PatternDef[] | CompiledPatternDef[]): Finding[] {
+function scanContent(content: string, file: string, patterns: PatternDef[] | CompiledPattern[]): Finding[] {
   const findings: Finding[] = [];
   const lines = content.split("\n");
 
   for (const patternDef of patterns) {
-    const regex = 'regex' in patternDef ? patternDef.regex : patternDef.pattern;
+    const isCompiledPattern = "regex" in patternDef;
+    const regex = isCompiledPattern ? patternDef.regex : patternDef.pattern;
     const id = patternDef.id;
-    const severity = 'severity' in patternDef ? patternDef.severity : (patternDef as PatternDef).severity || "medium";
+    const severity = normalizeSeverity(patternDef.severity);
     const message = patternDef.message;
-    const category = 'category' in patternDef ? patternDef.category : getCategoryFromId(id);
-    const asi = 'category' in patternDef ? mapCategoryToAsi(category) : getAsiFromId(id);
+    const category = isCompiledPattern ? patternDef.category : getCategoryFromId(id);
+    const asi = isCompiledPattern ? patternDef.asi : getAsiFromId(id);
 
     for (let i = 0; i < lines.length; i++) {
       if (regex.test(lines[i])) {
         findings.push({
           id,
-          category: category as any,
+          category,
           asi,
-          severity: severity as any,
+          severity,
           file,
           line: i + 1,
           message,
@@ -289,20 +308,6 @@ function scanContent(content: string, file: string, patterns: PatternDef[] | Com
     }
   }
   return findings;
-}
-
-function mapCategoryToAsi(category: string): string {
-  const map: Record<string, string> = {
-    "promptInjection": "ASI01",
-    "credentialLeaks": "ASI04",
-    "shellInjection": "ASI05",
-    "exfiltration": "ASI02",
-    "secrets": "ASI04",
-    "toolMisuse": "ASI02",
-    "behavioral": "ASI09",
-    "pii": "ASI03"  // NEW: Sensitive Data Exposure
-  };
-  return map[category] || "ASI04";
 }
 
 function scanCodeBlocksInMarkdown(content: string, file: string): Finding[] {
@@ -439,7 +444,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
       const content = readFileSync(file, "utf-8");
       fileContents.set(file, content);
 
-      if (filename === "SKILL.md" || filename === "AGENTS.md") {
+      if (isInstructionFile(filename)) {
         // Use external patterns if available, otherwise use hardcoded
         if (hasExternalPatterns) {
           const piPatterns = patterns.get("promptInjection") || [];
@@ -448,6 +453,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const bmPatterns = patterns.get("behavioral") || [];
           const cePatterns = patterns.get("shellInjection") || [];
           const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const sqlPatterns = patterns.get("sqlInjection") || [];
+          const pathPatterns = patterns.get("pathTraversal") || [];
 
           findings.push(...scanContent(content, file, piPatterns));
           findings.push(...scanContent(content, file, clPatterns));
@@ -455,6 +462,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, bmPatterns));
           findings.push(...scanContent(content, file, cePatterns));
           findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, sqlPatterns));
+          findings.push(...scanContent(content, file, pathPatterns));
         } else {
           findings.push(...scanContent(content, file, PROMPT_INJECTION_PATTERNS));
           findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_MD));
@@ -473,6 +482,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const scPatterns = patterns.get("secrets") || [];
           const tmPatterns = patterns.get("toolMisuse") || [];
           const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const sqlPatterns = patterns.get("sqlInjection") || [];
+          const pathPatterns = patterns.get("pathTraversal") || [];
 
           findings.push(...scanContent(content, file, clPatterns));
           findings.push(...scanContent(content, file, exPatterns));
@@ -480,6 +491,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, scPatterns));
           findings.push(...scanContent(content, file, tmPatterns));
           findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, sqlPatterns));
+          findings.push(...scanContent(content, file, pathPatterns));
         } else {
           findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_CODE));
           findings.push(...scanContent(content, file, EXFILTRATION_PATTERNS));
@@ -489,6 +502,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
         }
         // NEW: Always scan for PII-aware exfiltration
         findings.push(...scanContent(content, file, PII_EXFILTRATION_PATTERNS));
+      } else if (extname(filename).toLowerCase() === ".md") {
+        findings.push(...scanCodeBlocksInMarkdown(content, file));
       }
     } catch (e) {
       unreadableFiles.push(file);

@@ -40,7 +40,8 @@ npm install -g @hungpg/skill-audit
 skill-audit -g              # Audit global skills
 skill-audit -v              # Verbose output
 skill-audit --json          # JSON for CI
-skill-audit --threshold 5   # Fail if risk > 5
+skill-audit --threshold 5 --block  # Exit 1 if risk meets or exceeds 5
+skill-audit --compliance    # Add opt-in regulatory heuristics
 
 # Audit the agent execution environment
 skill-audit doctor          # Read-only shell/config/PATH/hook scan
@@ -62,6 +63,8 @@ skill-audit --check-command "npx skills add owner/repo"
 | Code Execution | ASI05 | Shell injection, dangerous commands |
 | Behavioral | ASI09 | Manipulation attempts, blind trust requests |
 
+Compliance checks are opt-in heuristics for Vietnam AI Law 2026, the EU AI Act, and GDPR. They identify documentation gaps but are not a legal determination.
+
 ## Agent Environment Checks
 
 `skill-audit doctor` checks risks outside a skill package, including:
@@ -81,9 +84,9 @@ Executable skills should declare the narrow session facts they read, the precond
 
 ## Risk Scoring
 
-- **0-3.0**: Safe ✅
-- **3.1-5.0**: Risky ⚠️
-- **5.1-7.0**: Dangerous 🔴
+- **0**: Safe ✅
+- **0.1-3.0**: Risky ⚠️
+- **3.1-7.0**: Dangerous 🔴
 - **7.1+**: Malicious ☠️
 
 ## Postinstall Safety

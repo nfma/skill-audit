@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, readdirSync, realpathSync, statSync } from "fs";
 import { basename, join } from "path";
 import matter from "gray-matter";
+import { isWithinRoot } from "./discover.js";
 import { SkillManifest, Finding } from "./types.js";
 
 /**
@@ -33,10 +34,27 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
   let manifest: SkillManifest | undefined;
 
   // SPEC-01: Check SKILL.md exists
-  const skillMdPath = join(skillPath, "SKILL.md");
+  let skillMdPath = join(skillPath, "SKILL.md");
   let skillMdContent: string;
-  
+
   try {
+    const resolvedSkillRoot = realpathSync(skillPath);
+    const resolvedSkillMdPath = realpathSync(join(resolvedSkillRoot, "SKILL.md"));
+
+    if (!isWithinRoot(resolvedSkillRoot, resolvedSkillMdPath)) {
+      findings.push({
+        id: "SPEC-18",
+        category: "SPEC",
+        asi: "SPEC",
+        severity: "critical",
+        file: skillMdPath,
+        message: "SKILL.md resolves outside the skill directory",
+        evidence: resolvedSkillMdPath
+      });
+      return { valid: false, findings };
+    }
+
+    skillMdPath = resolvedSkillMdPath;
     skillMdContent = readFileSync(skillMdPath, "utf-8");
   } catch (e) {
     findings.push({

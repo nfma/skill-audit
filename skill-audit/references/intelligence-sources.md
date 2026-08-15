@@ -1,18 +1,18 @@
 # Vulnerability Intelligence Sources
 
-This reference documents the vulnerability intelligence feeds used by skill-audit for dependency vulnerability scanning.
+This reference documents the vulnerability-intelligence integrations present in skill-audit and whether each one participates in the current audit path.
 
 ## Overview
 
-skill-audit integrates with five major vulnerability intelligence sources:
+skill-audit contains clients or maintenance support for five vulnerability-intelligence sources. Only the live OSV dependency path currently participates in ordinary audits.
 
-| Source | Provider | Update Frequency | Cache Duration |
-|--------|----------|-----------------|-----------------|
-| CISA KEV | CISA | Daily | 1 day |
-| NIST NVD | NIST | Daily | 1 day |
-| FIRST EPSS | FIRST | 3-day cycle | 3 days |
-| GitHub GHSA | GitHub | On-release | 3 days |
-| OSV.dev | Google | On-query | 7 days |
+| Source | Provider | Current integration |
+|--------|----------|---------------------|
+| CISA KEV | CISA | Maintenance cache and snapshot export only |
+| NIST NVD | NIST | Maintenance cache and snapshot export only |
+| FIRST EPSS | FIRST | Maintenance cache and snapshot export only |
+| GitHub GHSA | GitHub | Query helper present; not wired into ordinary audits |
+| OSV.dev | Google | Live dependency lookup; not cached by `--update-db` |
 
 ---
 
@@ -32,7 +32,6 @@ The CISA Known Exploited Vulnerabilities (KEV) catalog is a list of vulnerabilit
 | **API Endpoint** | https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json |
 | **Update Frequency** | Daily (around 14:00 UTC) |
 | **Max Cache Age** | 1 day |
-| **Warning Threshold** | 3 days |
 
 ### Data Format
 
@@ -48,9 +47,9 @@ The CISA Known Exploited Vulnerabilities (KEV) catalog is a list of vulnerabilit
 
 ### Usage in skill-audit
 
-- Cross-references skill dependencies against KEV
-- Flags any CVEs in dependencies that are actively exploited
-- Provides "known ransomware campaign" context in findings
+- `--update-db` downloads the catalog into the maintenance cache
+- `--download-offline-db` exports a KEV snapshot
+- Ordinary audits do not currently cross-reference dependencies against the KEV cache
 
 ---
 
@@ -70,7 +69,6 @@ The NVD is the U.S. government repository of standards-based vulnerability manag
 | **API Endpoint** | https://services.nvd.nist.gov/rest/json/cves/2.0 |
 | **Update Frequency** | Daily (around 00:00 UTC) |
 | **Max Cache Age** | 1 day |
-| **Warning Threshold** | 3 days |
 
 ### Data Format
 
@@ -98,9 +96,9 @@ The NVD is the U.S. government repository of standards-based vulnerability manag
 
 ### Usage in skill-audit
 
-- Provides CVSS scores for severity assessment
-- Maps CVEs to CWE (Common Weakness Enumeration)
-- Provides detailed descriptions for findings
+- `--update-db` downloads CVEs modified in the preceding 24 hours into the maintenance cache
+- `--download-offline-db` exports the same 24-hour snapshot
+- Ordinary audits do not currently enrich findings from the NVD cache
 
 ---
 
@@ -120,7 +118,6 @@ EPSS provides a probability score (0-100) that a vulnerability will be exploited
 | **API Endpoint** | https://api.first.org/data/v1/epss |
 | **Update Frequency** | Daily (around 00:00 UTC) |
 | **Max Cache Age** | 3 days |
-| **Warning Threshold** | 3 days |
 
 ### Data Format
 
@@ -139,9 +136,9 @@ EPSS provides a probability score (0-100) that a vulnerability will be exploited
 
 ### Usage in skill-audit
 
-- Calculates exploit probability for each CVE
-- Prioritizes high-probability exploits in findings
-- Helps identify urgent remediation needs
+- `--update-db` downloads EPSS data into the maintenance cache
+- `--download-offline-db` exports an EPSS snapshot
+- Ordinary audits do not currently enrich findings from the EPSS cache
 
 ### EPSS Score Interpretation
 
@@ -170,7 +167,6 @@ GitHub Security Advisories provide vulnerability information specific to the ope
 | **API Endpoint** | https://api.github.com/advisories |
 | **Update Frequency** | On-release (varies) |
 | **Max Cache Age** | 3 days |
-| **Warning Threshold** | 3 days |
 
 ### Data Format
 
@@ -195,9 +191,9 @@ GitHub Security Advisories provide vulnerability information specific to the ope
 
 ### Usage in skill-audit
 
-- Maps vulnerabilities to package ecosystems (npm, pip, Maven, etc.)
-- Provides version range information for precise matching
-- Includes patched versions in recommendations
+- A GHSA query helper maps advisories into the common record shape
+- No production audit or update command currently calls that helper
+- GHSA data is therefore not included in ordinary audit findings
 
 ---
 
@@ -217,7 +213,6 @@ OSV is an open-source vulnerability database that aggregates vulnerability data 
 | **API Endpoint** | https://api.osv.dev/v1/query |
 | **Update Frequency** | On-query (no bulk download) |
 | **Max Cache Age** | 7 days |
-| **Warning Threshold** | 3 days |
 
 ### Data Format
 
@@ -250,9 +245,9 @@ OSV is an open-source vulnerability database that aggregates vulnerability data 
 
 ### Usage in skill-audit
 
-- Queries on-demand for package vulnerabilities
-- Supports multiple package ecosystems
-- Provides unified vulnerability format
+- Dependency scanning can query OSV on demand when its configured scanner path requires it
+- `--update-db` does not bulk-download or cache OSV data
+- OSV CLI manages its own offline database separately from skill-audit's maintenance cache
 
 ---
 
@@ -264,9 +259,7 @@ OSV is an open-source vulnerability database that aggregates vulnerability data 
 .cache/skill-audit/feeds/
 ├── kev.json
 ├── nvd.json
-├── epss.json
-├── ghsa.json
-└── osv.json
+└── epss.json
 ```
 
 ### Cache Update
@@ -279,18 +272,13 @@ npx skill-audit --update-db
 npx skill-audit --update-db --source kev epss nvd
 ```
 
-### Staleness Warnings
-
-When cached data exceeds warning threshold:
-
-```
-⚠️ Vulnerability DB is stale (4.2 days for KEV, 5.1 days for EPSS)
-   Run: npx skill-audit --update-db
-```
+These caches support feed maintenance and snapshot export. Ordinary audit reports do not read them or emit cache-staleness warnings.
 
 ---
 
 ## Source Prioritization
+
+The codebase includes a merge/prioritization helper for a future combined-intelligence path. It is not wired into ordinary audits today.
 
 When multiple sources provide the same CVE:
 

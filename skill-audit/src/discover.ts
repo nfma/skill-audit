@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync } from "fs";
-import { join, resolve, basename, extname } from "path";
+import { isAbsolute, join, relative, resolve, sep } from "path";
 import { execFileSync } from "child_process";
 import { SkillInfo } from "./types.js";
 import { homedir } from "os";
@@ -42,95 +42,15 @@ export function getGlobalConfig(): SkillAuditConfig {
   }
 }
 
-// ============================================================
-// IGNORE FILE SUPPORT (.skillauditignore)
-// ============================================================
+const AUDITOR_EXCLUDED_DIRECTORIES = new Set([".git", ".hg", ".svn", "node_modules"]);
 
-const IGNORE_FILE = ".skillauditignore";
-
-/**
- * Read and parse .skillauditignore file from skill directory
- */
-export function getIgnorePatterns(skillPath: string): string[] {
-  const ignoreFilePath = join(skillPath, IGNORE_FILE);
-  const patterns: string[] = [];
-
-  if (!existsSync(ignoreFilePath)) {
-    return patterns;
-  }
-
-  try {
-    const content = readFileSync(ignoreFilePath, "utf-8");
-    const lines = content.split("\n");
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      // Skip empty lines and comments
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
-      patterns.push(trimmed);
-    }
-  } catch {
-    // Silently ignore unreadable ignore files
-  }
-
-  return patterns;
-}
-
-/**
- * Check if a file should be ignored based on ignore patterns
- */
-function matchesIgnorePattern(filePath: string, pattern: string, basePath: string): boolean {
-  // Normalize the file path relative to base
-  const relativePath = filePath.replace(basePath + "/", "");
-
-  // Handle glob patterns
-  if (pattern.includes("*")) {
-    // Convert glob to regex
-    let regexPattern = pattern
-      .replace(/\./g, "\\.")  // Escape dots
-      .replace(/\*\*/g, ".*"); // ** matches anything
-    
-    // Handle single * - match anything including slashes (for patterns like *.test.ts)
-    // But also match patterns like "test/*" within a directory
-    if (pattern.startsWith("*.")) {
-      // For patterns like *.test.ts, match anywhere in the path
-      regexPattern = regexPattern.replace(/\*/g, ".*");
-    } else {
-      // For other patterns, use [^/]* for single *
-      regexPattern = regexPattern.replace(/\*/g, "[^/]*");
-    }
-    
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(relativePath);
-  }
-
-  // Handle directory patterns (e.g., "test/" matches "test/**")
-  if (pattern.endsWith("/")) {
-    return relativePath.startsWith(pattern) || relativePath.startsWith(pattern.slice(0, -1));
-  }
-
-  // Exact match - also check if it's a file in a subdirectory
-  return relativePath === pattern || relativePath.endsWith("/" + pattern) || relativePath.includes("/" + pattern + "/");
-}
-
-/**
- * Filter files based on ignore patterns
- */
-export function filterIgnoredFiles(files: string[], patterns: string[], basePath: string): string[] {
-  if (patterns.length === 0) {
-    return files;
-  }
-
-  return files.filter(file => {
-    for (const pattern of patterns) {
-      if (matchesIgnorePattern(file, pattern, basePath)) {
-        return false; // Ignore this file
-      }
-    }
-    return true; // Keep this file
-  });
+export function isWithinRoot(root: string, candidate: string): boolean {
+  const relativePath = relative(root, candidate);
+  return relativePath === "" || (
+    relativePath !== ".."
+    && !relativePath.startsWith(`..${sep}`)
+    && !isAbsolute(relativePath)
+  );
 }
 
 export function resolveSkillPath(skillPath: string): string {
@@ -147,25 +67,45 @@ export function resolveSkillPath(skillPath: string): string {
 
 export function getSkillFiles(skillPath: string, basePath?: string): string[] {
   const files: string[] = [];
-  const root = basePath || skillPath;
 
   if (!existsSync(skillPath)) {
     return files;
   }
 
-  const stat = statSync(skillPath);
+  let root: string;
+  let scanRoot: string;
+  try {
+    root = realpathSync(basePath || skillPath);
+    scanRoot = realpathSync(skillPath);
+  } catch {
+    return files;
+  }
+
+  if (!isWithinRoot(root, scanRoot)) {
+    return files;
+  }
+
+  const stat = statSync(scanRoot);
 
   if (stat.isFile()) {
-    return [skillPath];
+    return [scanRoot];
   }
+
+  const visitedDirectories = new Set<string>();
 
   // Recursively scan all directories with symlink boundary enforcement
   function scanDir(dir: string) {
     try {
-      const entries = readdirSync(dir);
+      const realDir = realpathSync(dir);
+      if (!isWithinRoot(root, realDir) || visitedDirectories.has(realDir)) {
+        return;
+      }
+      visitedDirectories.add(realDir);
+
+      const entries = readdirSync(realDir);
 
       for (const entry of entries) {
-        const fullPath = join(dir, entry);
+        const fullPath = join(realDir, entry);
         
         // Use lstat to detect symlinks without following them
         const lstat = lstatSync(fullPath);
@@ -175,14 +115,14 @@ export function getSkillFiles(skillPath: string, basePath?: string): string[] {
           try {
             const realPath = realpathSync(fullPath);
             // Verify the resolved path is still within the skill directory
-            if (!realPath.startsWith(root)) {
+            if (!isWithinRoot(root, realPath)) {
               // Symlink points outside - skip to prevent directory traversal
               continue;
             }
             // Follow the symlink for scanning
             const targetStat = statSync(fullPath);
             if (targetStat.isDirectory()) {
-              if (!entry.startsWith(".")) {
+              if (!AUDITOR_EXCLUDED_DIRECTORIES.has(entry)) {
                 scanDir(realPath);
               }
             } else if (targetStat.isFile()) {
@@ -193,8 +133,7 @@ export function getSkillFiles(skillPath: string, basePath?: string): string[] {
             continue;
           }
         } else if (lstat.isDirectory()) {
-          // Skip hidden directories
-          if (!entry.startsWith(".")) {
+          if (!AUDITOR_EXCLUDED_DIRECTORIES.has(entry)) {
             scanDir(fullPath);
           }
         } else if (lstat.isFile()) {
@@ -206,13 +145,7 @@ export function getSkillFiles(skillPath: string, basePath?: string): string[] {
     }
   }
 
-  scanDir(skillPath);
-
-  // Apply .skillauditignore patterns if present
-  const ignorePatterns = getIgnorePatterns(skillPath);
-  if (ignorePatterns.length > 0) {
-    return filterIgnoredFiles(files, ignorePatterns, skillPath);
-  }
+  scanDir(scanRoot);
 
   return files;
 }

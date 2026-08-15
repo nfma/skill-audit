@@ -1,19 +1,20 @@
 {
   "name": "@hungpg/skill-audit",
   "version": "0.9.0",
-  "description": "Security auditing CLI for AI agent skills with PII detection and compliance validation",
+  "description": "Security auditing CLI for AI agent skills with PII detection and optional compliance heuristics",
   "type": "module",
   "bin": {
     "skill-audit": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/clean.cjs && npm run typecheck && tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/index.js --update-db",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -53,6 +54,13 @@
     "commander": "^14.0.3",
     "gray-matter": "^4.0.3",
     "semver": "^7.5.4"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "js-yaml": "3.15.1",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.26",
+    "vite": "8.2.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
