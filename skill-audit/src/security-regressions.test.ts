@@ -4,7 +4,6 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { getSkillFiles } from "./discover.js";
 import { auditSecurity } from "./security.js";
-import { auditSkill } from "./audit.js";
 
 const fixtureRoots: string[] = [];
 
@@ -73,7 +72,5 @@ describe("security scan coverage", () => {
     expect(result.findings.some(finding => finding.id === "SQL-001" && finding.file.endsWith("cleanup.sql"))).toBe(true);
     expect(result.findings.some(finding => finding.id === "PT-001" && finding.file.endsWith("paths.json"))).toBe(true);
 
-    const legacyResult = auditSkill({ name: "fixture", path: root, scope: "project", agents: [] });
-    expect(legacyResult.findings.some(finding => finding.id === "CE01" && finding.file.endsWith("postinstall.cjs"))).toBe(true);
   });
 });

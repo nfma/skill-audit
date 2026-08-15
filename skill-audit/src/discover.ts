@@ -44,7 +44,7 @@ export function getGlobalConfig(): SkillAuditConfig {
 
 const AUDITOR_EXCLUDED_DIRECTORIES = new Set([".git", ".hg", ".svn", "node_modules"]);
 
-function isWithinRoot(root: string, candidate: string): boolean {
+export function isWithinRoot(root: string, candidate: string): boolean {
   const relativePath = relative(root, candidate);
   return relativePath === "" || (
     relativePath !== ".."

@@ -4,14 +4,27 @@ import { Command } from "commander";
 import { discoverSkills, getGlobalConfig } from "./discover.js";
 import { auditSecurity, SecurityAuditResult } from "./security.js";
 import { validateSkillSpec, SpecValidationResult } from "./spec.js";
-import { createGroupedAuditResult } from "./scoring.js";
+import { createGroupedAuditResult, groupSecurityFindings } from "./scoring.js";
 import { scanDependencies } from "./deps.js";
 import { getKEV, getEPSS, getNVD, downloadOfflineDB } from "./intel.js";
 import { ensureIntelFeedsFresh } from "./auto-update.js";
 import { installHook, uninstallHook, getHookStatus, getDefaultHookConfig } from "./hooks.js";
 import { assessShellCommand, diffEnvironmentBaseline, getEnvironmentBaselinePath, reportCommandAssessment, reportEnvironmentBaseline, reportEnvironmentDiff, reportEnvironmentDoctor, runEnvironmentDoctor, writeEnvironmentBaseline } from "./environment.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { Finding, GroupedAuditResult } from "./types.js";
 import { reportGroupedResults } from "./grouped-reporter.js";
+
+function getVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8"));
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 // Build CLI - no subcommands, just options + action
 const program = new Command();
@@ -29,7 +42,7 @@ if (process.argv[2] === "trust" && process.argv[3] === "env") {
 program
   .name("skill-audit")
   .description("Security auditing CLI for AI agent skills")
-  .version("0.3.0")
+  .version(getVersion())
   .option("-g, --global", "Audit global skills only (default: true)")
   .option("-p, --project", "Audit project-level skills only")
   .option("-a, --agent <agents...>", "Filter by specific agents")
@@ -236,16 +249,13 @@ for (const skill of filteredSkills) {
 
   const allSecurityFindings = [...securityResult.findings, ...depFindings];
   
-  // NEW: Separate PII and compliance findings
-  const piiFindings = allSecurityFindings.filter(f => f.category === 'PII');
-  const complianceFindings = allSecurityFindings.filter(f => f.category === 'COMP');
-  const otherSecurityFindings = allSecurityFindings.filter(f => !['PII', 'COMP'].includes(f.category));
+  const { securityFindings, piiFindings, complianceFindings } = groupSecurityFindings(allSecurityFindings);
 
   const result = createGroupedAuditResult(
     skill,
     specResult.manifest,
     specResult.findings,
-    otherSecurityFindings,
+    securityFindings,
     piiFindings,
     complianceFindings,
     []

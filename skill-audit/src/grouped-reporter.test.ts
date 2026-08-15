@@ -11,7 +11,7 @@ function finding(severity: Finding["severity"]): Finding {
   return {
     id: "TEST-001",
     category: "CE",
-    asixx: "ASI05",
+    asi: "ASI05",
     severity,
     file: "/fixture/SKILL.md",
     message: "Regression finding",
@@ -73,5 +73,7 @@ describe("blocking enforcement", () => {
     const report = JSON.parse(readFileSync(output, "utf8"));
     expect(blocked).toBe(true);
     expect(report.summary.blocked).toBe(1);
+    expect(report.results[0].securityFindings[0]).toHaveProperty("asi", "ASI05");
+    expect(report.results[0].securityFindings[0]).not.toHaveProperty("asixx");
   });
 });
