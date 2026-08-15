@@ -137,7 +137,7 @@ export function createAuditResult(
 
 /**
  * Create grouped audit result for layered output
- * Spec findings drive the decision to block, security/intel are warnings
+ * Create a weighted result across spec, security, PII, compliance, and intelligence findings
  */
 export function createGroupedAuditResult(
   skill: SkillInfo,
@@ -148,7 +148,7 @@ export function createGroupedAuditResult(
   complianceFindings: Finding[],
   intelFindings: Finding[]
 ): GroupedAuditResult {
-  // Spec findings get lower weight - they're blockers but not security-critical
+  // Spec findings get lower weight than security-critical findings
   const specScore = calculateRiskScore(specFindings);
   const securityScore = calculateRiskScore(securityFindings);
   const piiScore = calculateRiskScore(piiFindings);

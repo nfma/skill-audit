@@ -127,8 +127,8 @@ skill-audit --uninstall-hook
 1. **Trigger**: When you run `npx skills add <package>`
 2. **Scan**: skill-audit analyzes the skill before installation
 3. **Decision**:
-   - Risk score ≤ 3.0 → Installation proceeds
-   - Risk score > 3.0 → Installation blocked
+   - Risk score < 3.0 with no high/critical security finding → Installation proceeds
+   - Risk score ≥ 3.0 or a high/critical security finding → Installation blocked
 4. **Report**: Detailed findings shown in terminal
 
 ## Usage
@@ -268,7 +268,7 @@ Context checks include:
 | `-g, --global` | Audit global skills | ✓ |
 | `-p, --project` | Audit project-level skills | |
 | `--mode <lint|audit|doctor>` | Lint (spec), full audit, or agent environment scan | audit |
-| `-t, --threshold <score>` | Fail if risk > threshold | 7.0 |
+| `-t, --threshold <score>` | Fail if risk meets or exceeds threshold | unset (3.0 with `--block`) |
 | `-j, --json` | JSON output | |
 | `-o, --output <file>` | Save to file | |
 | `--no-deps` | Skip dependency scan | |
@@ -291,9 +291,9 @@ Context checks include:
 
 | Level | Score | Icon |
 |-------|-------|------|
-| Safe | 0-3.0 | ✅ |
-| Risky | 3.1-5.0 | ⚠️ |
-| Dangerous | 5.1-7.0 | 🔴 |
+| Safe | 0 | ✅ |
+| Risky | 0.1-3.0 | ⚠️ |
+| Dangerous | 3.1-7.0 | 🔴 |
 | Malicious | 7.1+ | ☠️ |
 
 ## OWASP Agentic Top 10 Mapping
@@ -315,10 +315,10 @@ Feeds are cached locally with automatic freshness checks:
 | OSV.dev | On-query | 7 days |
 | GHSA | On-query | 3 days |
 
-**Automatic updates:**
-- Runs on `npm install` via `postinstall` hook
+**Feed refresh:**
 - Daily GitHub Actions workflow (public repos)
 - Manual: `npx skill-audit --update-db`
+- Audits and the informational postinstall script do not refresh feeds in the background
 
 **Stale cache warning:** Audit output warns if feeds are >3 days old.
 
@@ -356,6 +356,6 @@ Note: NVD API rate limits apply (5 requests/30 sec without API key). Set `NVD_AP
 
 **Skill not found**: Verify `SKILL.md` exists in root or `skills/` directory
 
-**postinstall update fails**: The `--quiet || true` flags ensure install continues even if update fails. Run manually later.
+**Feed refresh fails**: Re-run `skill-audit --update-db`; installation and ordinary audits do not depend on a background refresh.
 
 **Offline mode**: Cached feeds work offline. Re-run audit with existing cache.

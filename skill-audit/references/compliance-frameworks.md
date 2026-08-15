@@ -1,14 +1,14 @@
 # Compliance Frameworks
 
-This reference documents the regulatory frameworks validated by skill-audit when checking AI agent skills for compliance.
+This reference documents the optional heuristics skill-audit uses to flag missing compliance-related documentation in AI agent skills. These checks do not validate legal compliance and are not a legal determination.
 
 ## Overview
 
-skill-audit validates skills against three major regulatory frameworks:
+skill-audit can compare skill documentation with indicators associated with three regulatory frameworks:
 
 | Framework | Region | Effective Date | Risk Levels |
 |-----------|--------|---------------|-------------|
-| Vietnam AI Law 2026 | Vietnam | January 2026 | minimal, limited, high, unacceptable |
+| Vietnam AI Law 2026 | Vietnam | March 1, 2026 | minimal, limited, high, unacceptable |
 | EU AI Act | European Union | August 2024 (phased) | minimal, limited, high, unacceptable |
 | GDPR | European Union | May 2018 | minimal, limited, high, unacceptable |
 
@@ -18,11 +18,11 @@ skill-audit validates skills against three major regulatory frameworks:
 
 ### Overview
 
-Vietnam's AI Law (Law on Artificial Intelligence No. 24/2024/QH15) takes effect January 1, 2026. It establishes comprehensive requirements for AI systems operating in Vietnam.
+Vietnam's Law on Artificial Intelligence No. 134/2025/QH15 was passed on December 10, 2025 and took effect on March 1, 2026. The checks below are documentation indicators implemented by skill-audit; they are not an exhaustive statement of the law or proof that a skill is compliant.
 
-### Key Requirements
+### Heuristic Checks
 
-| Requirement ID | Description | Risk Level if Non-Compliant |
+| Requirement ID | Documentation indicator | Finding severity |
 |----------------|-------------|------------------------------|
 | VN-AI-001 | **Data Localization**: Personal data collected in Vietnam must be stored and processed within Vietnam | high |
 | VN-AI-002 | **User Consent**: Obtain explicit consent before collecting/processing personal data | high |
@@ -60,7 +60,7 @@ The European Union's AI Act (Regulation (EU) 2024/1689) is the world's most comp
 
 ### Key Requirements
 
-| Requirement ID | Description | Risk Level if Non-Compliant |
+| Requirement ID | Documentation indicator | Finding severity |
 |----------------|-------------|------------------------------|
 | EU-AI-001 | **Risk Assessment**: Conduct risk assessment before deployment | high |
 | EU-AI-002 | **Data Governance**: Ensure data quality and representativeness | limited |
@@ -94,7 +94,7 @@ The EU's GDPR (Regulation (EU) 2016/679) is the foundational data protection reg
 
 ### Key Requirements
 
-| Requirement ID | Description | Risk Level if Non-Compliant |
+| Requirement ID | Documentation indicator | Finding severity |
 |----------------|-------------|------------------------------|
 | GDPR-001 | **Lawful Basis**: Identify legal basis for processing (consent, contract, legitimate interest) | high |
 | GDPR-002 | **Data Subject Rights**: Support rights to access, rectify, erase, port data | high |
@@ -124,9 +124,9 @@ The EU's GDPR (Regulation (EU) 2016/679) is the foundational data protection reg
 
 ---
 
-## Compliance Validation Output
+## Heuristic Compliance Output
 
-When skill-audit runs compliance checks, it produces findings like:
+When skill-audit runs optional compliance heuristics, it produces findings like:
 
 ```json
 {
@@ -178,8 +178,7 @@ When skill-audit runs compliance checks, it produces findings like:
 ## References
 
 ### Vietnam AI Law 2026
-- [Vietnam National Assembly - AI Law](https://www.na.gov.vn/)
-- [Ministry of Science and Technology - AI Guidelines](https://most.gov.vn/)
+- [Vietnam Government legal database - Law No. 134/2025/QH15](https://vanban.chinhphu.vn/?docid=216334&orggroupid=1&pageid=27160)
 
 ### EU AI Act
 - [EUR-Lex - AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj)

@@ -44,7 +44,7 @@ if grep "^description:" "$SKILL_FILE" | grep -qv "This skill should be used when
 fi
 
 # Check for trigger phrases in description
-TRIGGER_COUNT=$(grep "^description:" "$SKILL_FILE" | grep -o '"[^"]*"' | wc -l)
+TRIGGER_COUNT=$(awk '/^description:/ { count += gsub(/"[^"]*"/, "") } END { print count + 0 }' "$SKILL_FILE")
 if [ "$TRIGGER_COUNT" -lt 4 ]; then
     echo "⚠️  Warning: Consider adding more trigger phrases (found $TRIGGER_COUNT, recommend 4+)"
 else

@@ -36,7 +36,7 @@ Category Score = Σ(Finding Score × Finding Weight)
 | **Behavioral Manipulation (ASI09)** | 1.5 | Attempts to manipulate agent behavior |
 | **PII Detection (ASI03)** | 1.5 | Personally Identifiable Information exposure |
 | **PII Exfiltration (PEX)** | 2.0 | PII being sent to external endpoints |
-| **Compliance** | 1.5 | Regulatory framework violations |
+| **Compliance** | 1.5 | Missing compliance-related documentation indicators |
 | **Dependency Vulnerabilities** | 1.0 | CVEs in skill dependencies |
 
 ### Severity Multipliers

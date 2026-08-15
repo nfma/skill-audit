@@ -1,4 +1,4 @@
-# Compliance Validation Report
+# Heuristic Compliance Review
 
 **Generated:** 2026-03-23
 **Framework:** Vietnam AI Law 2026, EU AI Act, GDPR
@@ -7,12 +7,14 @@
 
 ## Executive Summary
 
-| Skill | Vietnam AI Law | EU AI Act | GDPR | Overall Risk |
+| Skill | Vietnam indicators | EU AI Act indicators | GDPR indicators | Review priority |
 |-------|---------------|-----------|------|--------------|
-| skill-audit | ✅ Compliant | ✅ Compliant | ✅ Compliant | Low |
-| security-review | ⚠️ Review Needed | ✅ Compliant | ⚠️ Review Needed | Medium |
-| tdd-workflow | ✅ Compliant | ✅ Compliant | ✅ Compliant | Low |
-| writing-skills | ❌ Non-Compliant | ❌ Non-Compliant | ❌ Non-Compliant | High |
+| skill-audit | ✅ No gaps flagged | ✅ No gaps flagged | ✅ No gaps flagged | Low |
+| security-review | ⚠️ Review indicators | ✅ No gaps flagged | ⚠️ Review indicators | Medium |
+| tdd-workflow | ✅ No gaps flagged | ✅ No gaps flagged | ✅ No gaps flagged | Low |
+| writing-skills | ❌ Missing indicators | ❌ Missing indicators | ❌ Missing indicators | High |
+
+This example shows documentation heuristics only. It does not establish legal compliance or non-compliance.
 
 ---
 
@@ -54,7 +56,7 @@
 - ✅ VN-AI-003: AI disclosure present
 
 **EU AI Act:**
-- ✅ EU-AI-001 through EU-AI-005: Compliant
+- ✅ EU-AI-001 through EU-AI-005: No documentation gaps flagged
 
 **GDPR:**
 - ⚠️ GDPR-001: Document lawful basis for processing
@@ -69,9 +71,9 @@
 
 ### tdd-workflow ✅
 
-**All frameworks:** Compliant
+**All frameworks:** No documentation gaps flagged
 
-No compliance issues detected. Skill follows best practices for:
+No heuristic documentation gaps detected. The example indicates:
 - Minimal data collection
 - No user data processing
 - No external API calls with user data
@@ -113,11 +115,11 @@ No compliance issues detected. Skill follows best practices for:
 | GDPR-005 | Breach Notification | ❌ | No procedures in place |
 | GDPR-006 | International Transfers | ❌ | Transfers to US without safeguards |
 
-**Critical Issues:**
-1. User code sent to external LLM services (Vietnam AI Law violation)
-2. No consent mechanism before processing (GDPR violation)
-3. No data subject rights implementation (GDPR violation)
-4. International transfers without adequate safeguards (GDPR violation)
+**High-priority documentation gaps:**
+1. User code is described as being sent to external LLM services
+2. No consent mechanism is documented before processing
+3. No data-subject-rights mechanism is documented
+4. Safeguards for international transfers are not documented
 
 ---
 
@@ -144,6 +146,6 @@ No action required.
 
 ## References
 
-- [Vietnam AI Law 2026](https://www.na.gov.vn/)
+- [Vietnam Government legal database - Law No. 134/2025/QH15](https://vanban.chinhphu.vn/?docid=216334&orggroupid=1&pageid=27160)
 - [EU AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj)
 - [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj)

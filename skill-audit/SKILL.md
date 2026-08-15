@@ -40,7 +40,7 @@ npm install -g @hungpg/skill-audit
 skill-audit -g              # Audit global skills
 skill-audit -v              # Verbose output
 skill-audit --json          # JSON for CI
-skill-audit --threshold 5   # Fail if risk > 5
+skill-audit --threshold 5   # Fail if risk meets or exceeds 5
 skill-audit --compliance    # Add opt-in regulatory heuristics
 
 # Audit the agent execution environment
@@ -84,9 +84,9 @@ Executable skills should declare the narrow session facts they read, the precond
 
 ## Risk Scoring
 
-- **0-3.0**: Safe ✅
-- **3.1-5.0**: Risky ⚠️
-- **5.1-7.0**: Dangerous 🔴
+- **0**: Safe ✅
+- **0.1-3.0**: Risky ⚠️
+- **3.1-7.0**: Dangerous 🔴
 - **7.1+**: Malicious ☠️
 
 ## Postinstall Safety

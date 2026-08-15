@@ -1,12 +1,12 @@
 /**
- * Compliance Validation Module
+ * Compliance Documentation Heuristics
  *
- * Validates skills against regulatory frameworks:
+ * Flags missing documentation indicators associated with these frameworks:
  * - Vietnam AI Law 2026
  * - EU AI Act
  * - GDPR
  *
- * Inspired by AgentVeil's compliance checking approach.
+ * These checks do not establish legal compliance.
  */
 
 import { Finding, SkillManifest } from "./types.js";

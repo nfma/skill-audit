@@ -11,18 +11,18 @@ export interface GroupedReportOptions {
   block?: boolean;
 }
 
-function allFindings(result: GroupedAuditResult): Finding[] {
+function severityBlockingFindings(result: GroupedAuditResult): Finding[] {
   return [
     ...result.specFindings,
     ...result.securityFindings,
     ...result.piiFindings,
-    ...result.complianceFindings,
     ...result.intelFindings,
   ];
 }
 
 export function hasHighSeverityFinding(result: GroupedAuditResult): boolean {
-  return allFindings(result).some(finding => finding.severity === "critical" || finding.severity === "high");
+  return severityBlockingFindings(result)
+    .some(finding => finding.severity === "critical" || finding.severity === "high");
 }
 
 export function shouldBlockResult(result: GroupedAuditResult, threshold?: number): boolean {
@@ -53,6 +53,7 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
         malicious: results.filter(r => r.riskLevel === "malicious").length,
         specIssues: results.filter(r => r.specFindings.length > 0).length,
         securityIssues: results.filter(r => r.securityFindings.length > 0).length,
+        complianceIssues: results.filter(r => r.complianceFindings.length > 0).length,
         blocked: blockingResults.length,
       },
       results,
@@ -63,7 +64,7 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
     console.log(JSON.stringify(results, null, 2));
   } else {
     let safeCount = 0, riskyCount = 0, dangerousCount = 0, maliciousCount = 0;
-    let specErrors = 0, securityIssues = 0;
+    let specErrors = 0, securityIssues = 0, complianceIssues = 0;
 
     for (const result of results) {
       if (result.riskLevel === "safe") safeCount++;
@@ -73,11 +74,12 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
 
       if (result.specFindings.length > 0) specErrors++;
       if (result.securityFindings.length > 0) securityIssues++;
+      if (result.complianceFindings.length > 0) complianceIssues++;
     }
 
     console.log(`\n📊 Summary (${mode} mode):`);
     console.log(`   Safe: ${safeCount} | Risky: ${riskyCount} | Dangerous: ${dangerousCount} | Malicious: ${maliciousCount}`);
-    console.log(`   Skills with spec issues: ${specErrors} | Security issues: ${securityIssues}`);
+    console.log(`   Skills with spec issues: ${specErrors} | Security issues: ${securityIssues} | Compliance findings: ${complianceIssues}`);
 
     const kevStale = isCacheStale("kev");
     const epssStale = isCacheStale("epss");
@@ -124,6 +126,13 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
         if (result.securityFindings.length > 0) {
           console.log(`\n🔒 Security Issues (${result.securityFindings.length}):`);
           for (const finding of result.securityFindings) {
+            console.log(`   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`);
+          }
+        }
+
+        if (result.complianceFindings.length > 0) {
+          console.log(`\n📋 Compliance Findings (${result.complianceFindings.length}):`);
+          for (const finding of result.complianceFindings) {
             console.log(`   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`);
           }
         }
