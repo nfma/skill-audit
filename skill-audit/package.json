@@ -45,12 +45,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/harrypham2000/skill-audit.git"
+    "url": "git+https://github.com/nfma/skill-audit.git"
   },
   "bugs": {
-    "url": "https://github.com/harrypham2000/skill-audit/issues"
+    "url": "https://github.com/nfma/skill-audit/issues"
   },
-  "homepage": "https://github.com/harrypham2000/skill-audit#readme",
+  "homepage": "https://github.com/nfma/skill-audit#readme",
   "dependencies": {
     "commander": "^14.0.3",
     "gray-matter": "^4.0.3",
