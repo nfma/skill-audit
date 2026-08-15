@@ -980,7 +980,7 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
       success: true,
       message: 'OSV uses on-demand API queries (not bulk download). Use OSV CLI for offline scanning.'
     };
-    console.log('   ℹ️  OSV: Query-based API (use --update-db for caching)');
+    console.log('   ℹ️  OSV: Query-based API (use OSV CLI for offline scanning)');
 
     // Save metadata
     const metadata = {

@@ -40,7 +40,7 @@ npm install -g @hungpg/skill-audit
 skill-audit -g              # Audit global skills
 skill-audit -v              # Verbose output
 skill-audit --json          # JSON for CI
-skill-audit --threshold 5   # Fail if risk meets or exceeds 5
+skill-audit --threshold 5 --block  # Exit 1 if risk meets or exceeds 5
 skill-audit --compliance    # Add opt-in regulatory heuristics
 
 # Audit the agent execution environment

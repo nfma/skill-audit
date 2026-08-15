@@ -7,13 +7,14 @@
     "skill-audit": "dist/index.js"
   },
   "scripts": {
-    "build": "node scripts/clean.cjs && tsc",
+    "build": "node scripts/clean.cjs && npm run typecheck && tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/index.js --update-db",
-    "test": "vitest run src",
-    "test:watch": "vitest src"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json"
   },
   "engines": {
     "node": ">=18.0.0"

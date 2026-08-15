@@ -4,7 +4,11 @@ vi.mock("fs", async importOriginal => {
   const actual = await importOriginal<typeof import("fs")>();
   return {
     ...actual,
+    existsSync: vi.fn(() => false),
     mkdirSync: vi.fn(),
+    readFileSync: vi.fn(() => {
+      throw new Error("intel tests must not read the developer's filesystem");
+    }),
     writeFileSync: vi.fn(),
   };
 });
@@ -34,6 +38,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("streaming feed cancellation", () => {

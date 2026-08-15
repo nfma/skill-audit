@@ -1,5 +1,4 @@
 import { writeFileSync } from "fs";
-import { isCacheStale } from "./intel.js";
 import { Finding, GroupedAuditResult } from "./types.js";
 
 export interface GroupedReportOptions {
@@ -53,6 +52,8 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
         malicious: results.filter(r => r.riskLevel === "malicious").length,
         specIssues: results.filter(r => r.specFindings.length > 0).length,
         securityIssues: results.filter(r => r.securityFindings.length > 0).length,
+        piiIssues: results.filter(r => r.piiFindings.length > 0).length,
+        intelIssues: results.filter(r => r.intelFindings.length > 0).length,
         complianceIssues: results.filter(r => r.complianceFindings.length > 0).length,
         blocked: blockingResults.length,
       },
@@ -64,7 +65,7 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
     console.log(JSON.stringify(results, null, 2));
   } else {
     let safeCount = 0, riskyCount = 0, dangerousCount = 0, maliciousCount = 0;
-    let specErrors = 0, securityIssues = 0, complianceIssues = 0;
+    let specErrors = 0, securityIssues = 0, piiIssues = 0, intelIssues = 0, complianceIssues = 0;
 
     for (const result of results) {
       if (result.riskLevel === "safe") safeCount++;
@@ -74,24 +75,15 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
 
       if (result.specFindings.length > 0) specErrors++;
       if (result.securityFindings.length > 0) securityIssues++;
+      if (result.piiFindings.length > 0) piiIssues++;
+      if (result.intelFindings.length > 0) intelIssues++;
       if (result.complianceFindings.length > 0) complianceIssues++;
     }
 
     console.log(`\n📊 Summary (${mode} mode):`);
     console.log(`   Safe: ${safeCount} | Risky: ${riskyCount} | Dangerous: ${dangerousCount} | Malicious: ${maliciousCount}`);
-    console.log(`   Skills with spec issues: ${specErrors} | Security issues: ${securityIssues} | Compliance findings: ${complianceIssues}`);
-
-    const kevStale = isCacheStale("kev");
-    const epssStale = isCacheStale("epss");
-    const nvdStale = isCacheStale("nvd");
-    if (kevStale.warn || epssStale.warn || nvdStale.warn) {
-      const ages = [];
-      if (kevStale.age) ages.push(`${kevStale.age.toFixed(1)} days for KEV`);
-      if (epssStale.age) ages.push(`${epssStale.age.toFixed(1)} days for EPSS`);
-      if (nvdStale.age) ages.push(`${nvdStale.age.toFixed(1)} days for NVD`);
-      console.log(`\n⚠️  Vulnerability DB is stale (${ages.join(", ")})`);
-      console.log("   Run: npx skill-audit --update-db");
-    }
+    console.log(`   Skills with spec issues: ${specErrors} | Security issues: ${securityIssues} | PII issues: ${piiIssues}`);
+    console.log(`   Intelligence issues: ${intelIssues} | Compliance issues: ${complianceIssues}`);
 
     if (threshold !== undefined) {
       if (thresholdFailures.length > 0) {
@@ -126,6 +118,20 @@ export function reportGroupedResults(results: GroupedAuditResult[], options: Gro
         if (result.securityFindings.length > 0) {
           console.log(`\n🔒 Security Issues (${result.securityFindings.length}):`);
           for (const finding of result.securityFindings) {
+            console.log(`   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`);
+          }
+        }
+
+        if (result.piiFindings.length > 0) {
+          console.log(`\n🔐 PII Findings (${result.piiFindings.length}):`);
+          for (const finding of result.piiFindings) {
+            console.log(`   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`);
+          }
+        }
+
+        if (result.intelFindings.length > 0) {
+          console.log(`\n🛰️ Intelligence Findings (${result.intelFindings.length}):`);
+          for (const finding of result.intelFindings) {
             console.log(`   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`);
           }
         }

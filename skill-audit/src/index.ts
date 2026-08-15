@@ -50,15 +50,15 @@ program
   .option("-j, --json", "Output as JSON")
   .option("-o, --output <file>", "Save report to file (JSON format)")
   .option("-v, --verbose", "Show detailed findings")
-  .option("-t, --threshold <score>", "Fail if risk score meets or exceeds threshold (default with --block: 3.0)", parseFloat)
+  .option("-t, --threshold <score>", "Risk score threshold (default with --block: 3.0)", parseFloat)
   .option("--no-deps", "Skip dependency scanning (faster)")
   .option("--compliance", "Run heuristic compliance checks (audit mode only)")
   .option("--mode <mode>", "Audit mode: 'lint', 'audit', 'doctor', 'trust-env', or 'diff-env'", "audit")
   .option("--update-db", "Update advisory intelligence feeds")
   .option("--source <sources...>", "Sources for update-db: kev, epss, nvd, all", ["all"])
-  .option("--strict", "Fail if feeds are stale")
+  .option("--strict", "Exit 1 if a feed update fails (requires --update-db)")
   .option("--quiet", "Suppress non-error output")
-  .option("--download-offline-db <dir>", "Download offline vulnerability databases to directory")
+  .option("--download-offline-db <dir>", "Export vulnerability-feed snapshots to directory")
   .option("--check-command <command>", "Assess whether a shell command should trigger environment safety checks")
   .option("--install-hook", "Install PreToolUse hook for automatic skill auditing")
   .option("--uninstall-hook", "Remove the PreToolUse hook")
@@ -69,6 +69,10 @@ program
 program.parse(process.argv);
 
 const options = program.opts();
+
+if (options.strict && !options.updateDb) {
+  program.error("error: option '--strict' can only be used with '--update-db'");
+}
 
 // Load global config (~/.skill-audit/config.json) and merge with CLI options
 const globalConfig = getGlobalConfig();

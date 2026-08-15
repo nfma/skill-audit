@@ -149,7 +149,7 @@ Total: 3.0 + 2.5 + 1.5 = 7.0
 
 The following are tracked but don't affect the numeric score:
 
-- **Vulnerability intelligence staleness**: Warning only, doesn't increase risk score
+- **Maintenance-cache age**: Not consumed by the current audit path or included in its score
 - **Spec format warnings**: Advisory, not blocking
 - **Performance considerations**: Out of scope for security audit
 
