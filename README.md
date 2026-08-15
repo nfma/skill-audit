@@ -31,7 +31,7 @@ Before installing a third-party skill, you need to know:
 - **Exfiltration** patterns (ASI02)
 - **Behavioral manipulation** (ASI09)
 - **PII exposure** (ASI03) — 39 patterns for Vietnam and International PII
-- **Compliance violations** — Vietnam AI Law 2026, EU AI Act, GDPR
+- **Optional compliance heuristics** — Vietnam AI Law 2026, EU AI Act, GDPR
 - **Dependency vulnerabilities** (CVE/GHSA/KEV/EPSS)
 - **Agent environment risks** — suspicious hooks, shell startup files, PATH hijacking, MCP/tool command configs, workspace instruction poisoning, and package lifecycle scripts
 - **Session context gaps** — executable skills that do not declare what agent/session facts they read, require, and write back
@@ -53,6 +53,9 @@ skill-audit --mode lint
 
 # Full audit with JSON output
 skill-audit --mode audit -j > audit-results.json
+
+# Include heuristic compliance checks (not a legal determination)
+skill-audit --mode audit --compliance
 
 # Fail CI/CD on dangerous skills
 skill-audit -g -t 3.0
@@ -219,13 +222,12 @@ Enriched with real-time threat data from:
 - **FIRST EPSS** — Exploit Prediction Scoring System (3-day updates)
 - **OSV.dev** — Open Source Vulnerabilities database
 
-### Automatic Updates
+### Feed Updates
 
-The vulnerability database updates automatically:
+Normal audits never start background network requests. Refresh feeds explicitly when needed:
 
-1. **On install** - `postinstall` hook fetches latest KEV/EPSS feeds
-2. **Daily** - GitHub Actions workflow keeps cache fresh (public repos)
-3. **Manual** - Run `npx @hungpg/skill-audit --update-db` anytime
+1. **Manual** - Run `npx @hungpg/skill-audit --update-db` anytime
+2. **Scheduled** - The repository's GitHub Actions workflow refreshes its published feed cache
 
 ⚠️ **Stale cache warning**: If feeds are >3 days old, audit output will warn you to update.
 

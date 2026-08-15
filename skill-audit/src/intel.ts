@@ -116,20 +116,30 @@ async function fetchWithRetry(
   timeoutMs: number = FETCH_TIMEOUT_MS,
   options: RequestInit = {}
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const externalSignal = options.signal ?? undefined;
+  const { signal: _signal, ...requestOptions } = options;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    throwIfFetchAborted(externalSignal);
+
+    const controller = new AbortController();
+    const forwardAbort = () => controller.abort(externalSignal?.reason);
+    externalSignal?.addEventListener('abort', forwardAbort, { once: true });
+    if (externalSignal?.aborted) forwardAbort();
+    const timeoutId = setTimeout(
+      () => controller.abort(new Error(`Request timed out after ${timeoutMs}ms`)),
+      timeoutMs
+    );
+
     try {
       const response = await fetch(url, {
-        ...options,
+        ...requestOptions,
         signal: controller.signal,
         headers: {
           'User-Agent': 'skill-audit/0.1.0 (Vulnerability Intelligence Scanner)',
-          ...options.headers
+          ...requestOptions.headers
         }
       });
-      clearTimeout(timeoutId);
       
       if (response.ok) {
         return response;
@@ -137,8 +147,8 @@ async function fetchWithRetry(
       
       console.error(`Fetch failed (${url}): HTTP ${response.status}`);
     } catch (error) {
-      clearTimeout(timeoutId);
-      
+      throwIfFetchAborted(externalSignal);
+
       if (attempt === MAX_RETRIES - 1) {
         throw error; // Last attempt - rethrow
       }
@@ -146,11 +156,40 @@ async function fetchWithRetry(
       // Exponential backoff: 1s, 2s, 4s
       const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
       console.error(`Fetch failed (${url}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await waitForRetry(delay, externalSignal);
+    } finally {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', forwardAbort);
     }
   }
   
   throw new Error('Max retries exceeded');
+}
+
+function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
+  throwIfFetchAborted(signal);
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, delay);
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onAbort);
+      reject(fetchAbortReason(signal));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
+}
+
+function throwIfFetchAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw fetchAbortReason(signal);
+}
+
+function fetchAbortReason(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error ? signal.reason : new Error('Fetch aborted');
 }
 
 /**
@@ -468,12 +507,12 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
 /**
  * Fetch CISA KEV (Known Exploited Vulnerabilities)
  */
-export async function fetchKEV(): Promise<AdvisoryRecord[]> {
+export async function fetchKEV(signal?: AbortSignal): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
   
   try {
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(url, FETCH_TIMEOUT_MS, { signal });
     const data = await response.json() as {
       title?: string;
       catalogVersion?: string;
@@ -518,12 +557,12 @@ export async function fetchKEV(): Promise<AdvisoryRecord[]> {
 /**
  * Fetch EPSS scores
  */
-export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
+export async function fetchEPSS(signal?: AbortSignal): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const url = 'https://api.first.org/data/v1/epss?limit=500&sort=epss';
 
   try {
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(url, FETCH_TIMEOUT_MS, { signal });
     const data = await response.json() as {
       status: string;
       total: number;
@@ -565,7 +604,7 @@ export async function fetchEPSS(): Promise<AdvisoryRecord[]> {
  * Uses NVD API v2.0 with CVSS scoring
  * API: https://nvd.nist.gov/developers/vulnerabilities
  */
-export async function fetchNVD(): Promise<AdvisoryRecord[]> {
+export async function fetchNVD(signal?: AbortSignal): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const apiKey = process.env.NVD_API_KEY;
 
@@ -589,7 +628,7 @@ export async function fetchNVD(): Promise<AdvisoryRecord[]> {
       headers['apiKey'] = apiKey;
     }
 
-    const response = await fetchWithRetry(url, FETCH_TIMEOUT_MS, { headers });
+    const response = await fetchWithRetry(url, FETCH_TIMEOUT_MS, { headers, signal });
     const data = await response.json() as {
       resultsPerPage: number;
       startIndex: number;

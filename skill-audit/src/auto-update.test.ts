@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the intel module before importing auto-update
 vi.mock('./intel.js', () => ({
@@ -13,7 +13,7 @@ import { isCacheStale, fetchKEV, fetchEPSS, fetchNVD, saveToCache } from './inte
 
 describe('ensureIntelFeedsFresh', () => {
   // Import after mocking - use dynamic import in test
-  let ensureIntelFeedsFresh: (options?: { verbose?: boolean; timeout?: number; delay?: number }) => Promise<void>;
+  let ensureIntelFeedsFresh: (options?: { verbose?: boolean; timeout?: number; delay?: number; signal?: AbortSignal }) => Promise<void>;
   let getFeedStatus: () => Array<{ source: string; stale: boolean; age?: number; warn: boolean }>;
 
   beforeEach(async () => {
@@ -54,8 +54,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act - use delay: 0 to run immediately in tests
     await ensureIntelFeedsFresh({ delay: 0 });
-    // Wait for setTimeout to complete
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert
     expect(fetchKEV).toHaveBeenCalledTimes(1);
@@ -78,7 +76,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert
     expect(fetchEPSS).toHaveBeenCalledTimes(1);
@@ -99,7 +96,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert
     expect(fetchNVD).toHaveBeenCalledTimes(1);
@@ -120,7 +116,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert
     expect(fetchKEV).toHaveBeenCalledTimes(1);
@@ -138,7 +133,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert: saveToCache should NOT be called for empty records
     expect(saveToCache).not.toHaveBeenCalled();
@@ -153,7 +147,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act & Assert: Should not throw
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
     expect(saveToCache).not.toHaveBeenCalled(); // Should not save on error
   });
 
@@ -170,38 +163,83 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Should still save KEV and NVD
     expect(saveToCache).toHaveBeenCalledWith('kev', mockKEV);
     expect(saveToCache).toHaveBeenCalledWith('nvd', mockEPSS);
   });
 
-  it('should resolve immediately (non-blocking)', async () => {
-    // Arrange
-    vi.mocked(isCacheStale).mockReturnValue({ stale: true, warn: false });
-    vi.mocked(fetchKEV).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve([]), 1000)));
+  it('should resolve only after the refresh completes', async () => {
+    vi.mocked(isCacheStale)
+      .mockReturnValueOnce({ stale: true, warn: false })
+      .mockReturnValue({ stale: false, warn: false });
+    let resolveFetch: ((records: []) => void) | undefined;
+    vi.mocked(fetchKEV).mockImplementation(() => new Promise(resolve => {
+      resolveFetch = resolve;
+    }));
 
-    const start = Date.now();
-    
-    // Act - should resolve quickly, not wait for fetch
-    await ensureIntelFeedsFresh({ delay: 10 });
-    const elapsed = Date.now() - start;
+    let completed = false;
+    const refresh = ensureIntelFeedsFresh({ delay: 0 }).then(() => {
+      completed = true;
+    });
+    await vi.waitFor(() => expect(fetchKEV).toHaveBeenCalledOnce());
 
-    // Assert - should resolve within 100ms (delay + small buffer)
-    expect(elapsed).toBeLessThan(100);
+    expect(completed).toBe(false);
+    resolveFetch?.([]);
+    await refresh;
+    expect(completed).toBe(true);
   });
 
-  it('should respect timeout option', async () => {
-    // Arrange
-    vi.mocked(isCacheStale).mockReturnValue({ stale: true, warn: false });
-    vi.mocked(fetchKEV).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve([{ id: 'CVE-1', aliases: [], source: 'KEV' as const, references: [] }]), 10000)));
+  it('should abort an in-flight fetch when its timeout expires', async () => {
+    vi.mocked(isCacheStale)
+      .mockReturnValueOnce({ stale: true, warn: false })
+      .mockReturnValue({ stale: false, warn: false });
+    let aborted = false;
+    vi.mocked(fetchKEV).mockImplementation(signal => new Promise(resolve => {
+      signal?.addEventListener('abort', () => {
+        aborted = true;
+        resolve([]);
+      }, { once: true });
+    }));
 
-    // Act - with short timeout
-    await ensureIntelFeedsFresh({ timeout: 50, delay: 10 });
+    await ensureIntelFeedsFresh({ timeout: 10, delay: 0 });
 
-    // Assert - should timeout and not save
+    expect(aborted).toBe(true);
     expect(saveToCache).not.toHaveBeenCalled();
+  });
+
+  it('should propagate caller cancellation and abort the active fetch', async () => {
+    vi.mocked(isCacheStale).mockReturnValue({ stale: true, warn: false });
+    const controller = new AbortController();
+    let aborted = false;
+    vi.mocked(fetchKEV).mockImplementation(signal => new Promise(resolve => {
+      signal?.addEventListener('abort', () => {
+        aborted = true;
+        resolve([]);
+      }, { once: true });
+    }));
+
+    const refresh = ensureIntelFeedsFresh({ delay: 0, signal: controller.signal });
+    await vi.waitFor(() => expect(fetchKEV).toHaveBeenCalledOnce());
+    controller.abort(new Error('cancelled by caller'));
+
+    await expect(refresh).rejects.toThrow('cancelled by caller');
+    expect(aborted).toBe(true);
+    expect(fetchEPSS).not.toHaveBeenCalled();
+    expect(fetchNVD).not.toHaveBeenCalled();
+  });
+
+  it('should cancel before any network work starts', async () => {
+    vi.mocked(isCacheStale).mockReturnValue({ stale: true, warn: false });
+    const controller = new AbortController();
+
+    const refresh = ensureIntelFeedsFresh({ delay: 1000, signal: controller.signal });
+    controller.abort(new Error('cancelled before refresh'));
+
+    await expect(refresh).rejects.toThrow('cancelled before refresh');
+    expect(fetchKEV).not.toHaveBeenCalled();
+    expect(fetchEPSS).not.toHaveBeenCalled();
+    expect(fetchNVD).not.toHaveBeenCalled();
   });
 
   it('should support verbose mode', async () => {
@@ -211,7 +249,6 @@ describe('ensureIntelFeedsFresh', () => {
 
     // Act
     await ensureIntelFeedsFresh({ verbose: true, delay: 0 });
-    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Assert - should log in verbose mode
     expect(consoleSpy).toHaveBeenCalled();
@@ -257,7 +294,7 @@ describe('getFeedStatus', () => {
   });
 });
 
-describe('Auto-update integration with CLI modes', () => {
+describe('Feed refresh exports', () => {
   it('should export ensureIntelFeedsFresh function', async () => {
     // This is a behavioral test - verify the function is exported and callable
     const { ensureIntelFeedsFresh } = await import('./auto-update.js');

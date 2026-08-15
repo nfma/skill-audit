@@ -9,8 +9,6 @@
  * Inspired by AgentVeil's compliance checking approach.
  */
 
-import { readFileSync } from "fs";
-import { basename } from "path";
 import { Finding, SkillManifest } from "./types.js";
 
 // ============================================================
@@ -409,30 +407,17 @@ const GDPR_REQUIREMENTS: ComplianceRequirement[] = [
 // ============================================================
 
 export function checkCompliance(
-  skillPath: string,
-  manifest?: SkillManifest
+  manifest: SkillManifest
 ): ComplianceReport[] {
   const reports: ComplianceReport[] = [];
-  
-  // Read skill content
-  let content = '';
-  try {
-    const files = [skillPath];
-    if (manifest?.files) {
-      files.push(...manifest.files);
-    }
-    
-    for (const file of files) {
-      try {
-        const fileContent = readFileSync(file, 'utf-8');
-        content += '\n' + fileContent;
-      } catch {
-        // Skip unreadable files
-      }
-    }
-  } catch {
-    // If no content, still run checks with empty string
-  }
+
+  const content = [
+    manifest.name,
+    manifest.description,
+    manifest.content,
+    manifest.allowedTools || '',
+    JSON.stringify(manifest.metadata || {})
+  ].join('\n');
   
   // Check each framework
   reports.push(runFrameworkCheck('VN_AI_LAW_2026', VN_AI_LAW_REQUIREMENTS, content, manifest));
@@ -546,6 +531,10 @@ export function complianceToFindings(
   }
   
   return findings;
+}
+
+export function auditCompliance(manifest: SkillManifest, skillPath: string): Finding[] {
+  return complianceToFindings(checkCompliance(manifest), skillPath);
 }
 
 // ============================================================

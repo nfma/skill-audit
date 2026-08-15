@@ -7,7 +7,7 @@ import { validateSkillSpec, SpecValidationResult } from "./spec.js";
 import { createGroupedAuditResult, groupSecurityFindings } from "./scoring.js";
 import { scanDependencies } from "./deps.js";
 import { getKEV, getEPSS, getNVD, downloadOfflineDB } from "./intel.js";
-import { ensureIntelFeedsFresh } from "./auto-update.js";
+import { auditCompliance } from "./compliance.js";
 import { installHook, uninstallHook, getHookStatus, getDefaultHookConfig } from "./hooks.js";
 import { assessShellCommand, diffEnvironmentBaseline, getEnvironmentBaselinePath, reportCommandAssessment, reportEnvironmentBaseline, reportEnvironmentDiff, reportEnvironmentDoctor, runEnvironmentDoctor, writeEnvironmentBaseline } from "./environment.js";
 import { readFileSync } from "fs";
@@ -52,6 +52,7 @@ program
   .option("-v, --verbose", "Show detailed findings")
   .option("-t, --threshold <score>", "Fail if risk score meets or exceeds threshold (default with --block: 3.0)", parseFloat)
   .option("--no-deps", "Skip dependency scanning (faster)")
+  .option("--compliance", "Run heuristic compliance checks (audit mode only)")
   .option("--mode <mode>", "Audit mode: 'lint', 'audit', 'doctor', 'trust-env', or 'diff-env'", "audit")
   .option("--update-db", "Update advisory intelligence feeds")
   .option("--source <sources...>", "Sources for update-db: kev, epss, nvd, all", ["all"])
@@ -197,11 +198,6 @@ if (mode === "diff-env") {
   process.exit(0);
 }
 
-// Auto-update intelligence feeds in background (silent)
-if (mode === "audit") {
-  ensureIntelFeedsFresh(); // Fire and forget - non-blocking
-}
-
 if (!options.json) {
   console.log(mode === "lint" 
     ? "📋 Linting skills (spec validation)..."
@@ -247,7 +243,10 @@ for (const skill of filteredSkills) {
     }
   }
 
-  const allSecurityFindings = [...securityResult.findings, ...depFindings];
+  const rawComplianceFindings = mode === "audit" && options.compliance && specResult.manifest
+    ? auditCompliance(specResult.manifest, skill.path)
+    : [];
+  const allSecurityFindings = [...securityResult.findings, ...depFindings, ...rawComplianceFindings];
   
   const { securityFindings, piiFindings, complianceFindings } = groupSecurityFindings(allSecurityFindings);
 
