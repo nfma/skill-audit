@@ -131,8 +131,15 @@ const BEHAVIORAL_PATTERNS = [
 ];
 
 function isCodeFile(filename: string): boolean {
-  const codeExtensions = [".sh", ".bash", ".py", ".js", ".ts", ".tsx", ".jsx", ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".cs", ".php", ".yaml", ".yml"];
-  return codeExtensions.includes(extname(filename).toLowerCase());
+  const codeExtensions = [
+    ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
+    ".py", ".pyw", ".js", ".cjs", ".mjs", ".jsx", ".ts", ".cts", ".mts", ".tsx",
+    ".rb", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp", ".cs", ".php", ".lua", ".pl",
+    ".sql", ".yaml", ".yml", ".json", ".jsonc", ".toml", ".ini", ".cfg", ".conf", ".xml"
+  ];
+  const codeFilenames = ["dockerfile", "containerfile", "makefile", "justfile", "procfile", ".cursorrules"];
+  const normalizedName = basename(filename).toLowerCase();
+  return codeExtensions.includes(extname(normalizedName)) || codeFilenames.includes(normalizedName);
 }
 
 function isKnownSafeScript(filePath: string, content: string): boolean {

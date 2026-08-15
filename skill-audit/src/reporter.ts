@@ -73,15 +73,6 @@ function formatComplianceReport(reports: ComplianceReport[]): string {
 }
 
 export function reportResults(results: AuditResult[], options: any, complianceReports?: Map<string, ComplianceReport[]>): void {
-  if (options.json) {
-    const output = {
-      skills: results,
-      compliance: complianceReports ? Object.fromEntries(complianceReports) : undefined,
-    };
-    console.log(JSON.stringify(output, null, 2));
-    return;
-  }
-
   const byAgent = new Map<string, AuditResult[]>();
   for (const result of results) {
     for (const agent of result.skill.agents) {
@@ -96,6 +87,24 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
   }
 
   const uniqueResults = Array.from(uniqueSkills.values());
+  const thresholdFailures = options.threshold === undefined
+    ? []
+    : uniqueResults.filter(result => result.riskScore >= options.threshold);
+  const severityFailures = uniqueResults.filter(result =>
+    result.findings.some(finding => finding.severity === "critical" || finding.severity === "high")
+  );
+  const shouldBlock = (options.block === true || options.threshold !== undefined)
+    && new Set([...thresholdFailures, ...severityFailures]).size > 0;
+
+  if (options.json) {
+    const output = {
+      skills: results,
+      compliance: complianceReports ? Object.fromEntries(complianceReports) : undefined,
+    };
+    console.log(JSON.stringify(output, null, 2));
+    if (shouldBlock) process.exitCode = 1;
+    return;
+  }
 
   console.log("\n🔍 Auditing installed skills...\n");
   console.log("Total: " + uniqueResults.length + " skills scanned");
@@ -193,12 +202,17 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
   }
 
   if (options.threshold !== undefined) {
-    const failed = uniqueResults.filter(r => r.riskScore > options.threshold);
-    if (failed.length > 0) {
-      console.log("❌ " + failed.length + " skills exceed threshold (" + options.threshold + ")");
-      process.exit(1);
+    if (thresholdFailures.length > 0) {
+      console.log("❌ " + thresholdFailures.length + " skills meet or exceed threshold (" + options.threshold + ")");
     } else {
       console.log("✅ All skills within acceptable risk threshold");
     }
   }
+
+  const severityOnlyFailures = severityFailures.filter(result => !thresholdFailures.includes(result));
+  if (options.block === true && severityOnlyFailures.length > 0) {
+    console.log("❌ " + severityOnlyFailures.length + " skills contain high or critical findings");
+  }
+
+  if (shouldBlock) process.exitCode = 1;
 }

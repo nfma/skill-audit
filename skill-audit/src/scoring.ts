@@ -180,8 +180,8 @@ export function hasBlockingSpecErrors(findings: Finding[]): boolean {
 }
 
 /**
- * Check if security findings should block (critical severity)
+ * Check if security findings should block (high or critical severity)
  */
 export function hasBlockingSecurityFindings(findings: Finding[]): boolean {
-  return findings.some(f => f.severity === "critical");
+  return findings.some(f => f.severity === "critical" || f.severity === "high");
 }

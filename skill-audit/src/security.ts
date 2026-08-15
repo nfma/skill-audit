@@ -209,9 +209,28 @@ const TRUSTED_PROTOCOLS = ['https:', 'git:'];
 // Helper Functions
 // ============================================================
 
+const CODE_EXTENSIONS = new Set([
+  ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
+  ".py", ".pyw", ".js", ".cjs", ".mjs", ".jsx", ".ts", ".cts", ".mts", ".tsx",
+  ".rb", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp", ".cs", ".php", ".lua", ".pl",
+  ".sql", ".yaml", ".yml", ".json", ".jsonc", ".toml", ".ini", ".cfg", ".conf", ".xml"
+]);
+
+const CODE_FILENAMES = new Set([
+  "dockerfile", "containerfile", "makefile", "justfile", "procfile", ".cursorrules"
+]);
+
+const INSTRUCTION_FILENAMES = new Set([
+  "skill.md", "agents.md", "claude.md", "gemini.md"
+]);
+
 function isCodeFile(filename: string): boolean {
-  const codeExtensions = [".sh", ".bash", ".py", ".js", ".ts", ".tsx", ".jsx", ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".cs", ".php", ".yaml", ".yml"];
-  return codeExtensions.includes(extname(filename).toLowerCase());
+  const normalizedName = basename(filename).toLowerCase();
+  return CODE_EXTENSIONS.has(extname(normalizedName)) || CODE_FILENAMES.has(normalizedName);
+}
+
+function isInstructionFile(filename: string): boolean {
+  return INSTRUCTION_FILENAMES.has(filename.toLowerCase());
 }
 
 function isKnownSafeScript(filePath: string, content: string): boolean {
@@ -300,7 +319,9 @@ function mapCategoryToASIXX(category: string): string {
     "secrets": "ASI04",
     "toolMisuse": "ASI02",
     "behavioral": "ASI09",
-    "pii": "ASI03"  // NEW: Sensitive Data Exposure
+    "pii": "ASI03",  // NEW: Sensitive Data Exposure
+    "sqlInjection": "ASI06",
+    "pathTraversal": "ASI07"
   };
   return map[category] || "ASI04";
 }
@@ -439,7 +460,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
       const content = readFileSync(file, "utf-8");
       fileContents.set(file, content);
 
-      if (filename === "SKILL.md" || filename === "SKILL.md") {
+      if (isInstructionFile(filename)) {
         // Use external patterns if available, otherwise use hardcoded
         if (hasExternalPatterns) {
           const piPatterns = patterns.get("promptInjection") || [];
@@ -448,6 +469,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const bmPatterns = patterns.get("behavioral") || [];
           const cePatterns = patterns.get("shellInjection") || [];
           const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const sqlPatterns = patterns.get("sqlInjection") || [];
+          const pathPatterns = patterns.get("pathTraversal") || [];
 
           findings.push(...scanContent(content, file, piPatterns));
           findings.push(...scanContent(content, file, clPatterns));
@@ -455,6 +478,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, bmPatterns));
           findings.push(...scanContent(content, file, cePatterns));
           findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, sqlPatterns));
+          findings.push(...scanContent(content, file, pathPatterns));
         } else {
           findings.push(...scanContent(content, file, PROMPT_INJECTION_PATTERNS));
           findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_MD));
@@ -473,6 +498,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const scPatterns = patterns.get("secrets") || [];
           const tmPatterns = patterns.get("toolMisuse") || [];
           const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const sqlPatterns = patterns.get("sqlInjection") || [];
+          const pathPatterns = patterns.get("pathTraversal") || [];
 
           findings.push(...scanContent(content, file, clPatterns));
           findings.push(...scanContent(content, file, exPatterns));
@@ -480,6 +507,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, scPatterns));
           findings.push(...scanContent(content, file, tmPatterns));
           findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, sqlPatterns));
+          findings.push(...scanContent(content, file, pathPatterns));
         } else {
           findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_CODE));
           findings.push(...scanContent(content, file, EXFILTRATION_PATTERNS));
@@ -489,6 +518,8 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
         }
         // NEW: Always scan for PII-aware exfiltration
         findings.push(...scanContent(content, file, PII_EXFILTRATION_PATTERNS));
+      } else if (extname(filename).toLowerCase() === ".md") {
+        findings.push(...scanCodeBlocksInMarkdown(content, file));
       }
     } catch (e) {
       unreadableFiles.push(file);
