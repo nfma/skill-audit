@@ -65,6 +65,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: read
     steps:
       - name: Require no open Dependabot alerts
         env:
