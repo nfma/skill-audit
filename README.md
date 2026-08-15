@@ -294,3 +294,10 @@ schtasks /create /tn "skill-audit-update" /tr "skill-audit --update-db" /sc dail
 ## License
 
 MIT
+
+## Attribution
+
+This independently maintained fork is authored by [Nuno Marques](https://github.com/nfma).
+It is based on the original [`skill-audit`](https://github.com/harrypham2000/skill-audit)
+work by [Hung Pham](https://github.com/harrypham2000), whose contribution remains
+credited here and in the repository history.

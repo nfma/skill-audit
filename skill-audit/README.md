@@ -30,11 +30,12 @@ above build the checked-out source and link its `skill-audit` executable.
 ### Option 2: Install as a Skill (For Claude Code)
 
 ```bash
-# Install from this GitHub fork (not an npm package name)
-npx skills add nfma/skill-audit -g -y
+# Install the nested skill from this GitHub fork (not an npm package name)
+npx skills add nfma/skill-audit --skill skill-audit -g -y
 ```
 
 > ⚠️ **Important**: The skills CLI expects `owner/repo` format, not npm scoped packages.
+>
 > - ✅ Correct: `nfma/skill-audit`
 > - ❌ Incorrect: `@hungpg/skill-audit`
 
@@ -399,3 +400,10 @@ Note: NVD API rate limits apply (5 requests/30 sec without API key). Set `NVD_AP
 **Feed refresh fails**: Re-run `skill-audit --update-db`; installation and ordinary audits do not depend on a background refresh.
 
 **Offline snapshots**: `--download-offline-db <dir>` exports feed data for external inspection; ordinary audits do not consume these files.
+
+## Attribution
+
+This fork is authored and maintained by [Nuno Marques](https://github.com/nfma).
+It builds on the original [`skill-audit`](https://github.com/harrypham2000/skill-audit)
+work by [Hung Pham](https://github.com/harrypham2000), whose contribution remains
+credited here, in `package.json`, and in the repository history.

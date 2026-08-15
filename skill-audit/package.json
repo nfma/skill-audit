@@ -41,7 +41,10 @@
     "prompt-injection",
     "llm-security"
   ],
-  "author": "Hung Pham",
+  "author": "Nuno Marques (https://github.com/nfma)",
+  "contributors": [
+    "Hung Pham (https://github.com/harrypham2000)"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
