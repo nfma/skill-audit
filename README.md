@@ -1,9 +1,5 @@
 # skill-audit
 
-[![npm](https://img.shields.io/npm/v/@hungpg/skill-audit)](https://www.npmjs.com/package/@hungpg/skill-audit)
-[![npm downloads](https://img.shields.io/npm/dm/@hungpg/skill-audit)](https://www.npmjs.com/package/@hungpg/skill-audit)
-[![License](https://img.shields.io/npm/l/@hungpg/skill-audit)](https://www.npmjs.com/package/@hungpg/skill-audit)
-
 Security auditing tool for AI agent skills and agent execution environments.
 
 > Part of the [Vercel Skills](https://skills.sh) ecosystem — validating skills against the Agent Skills specification and detecting vulnerabilities across OWASP Agentic Top 10 categories.
@@ -39,13 +35,14 @@ Before installing a third-party skill, you need to know:
 ## Quick Start
 
 ```bash
-# Install globally
-npm install -g @hungpg/skill-audit
+# Clone this fork and build the CLI from source
+git clone https://github.com/nfma/skill-audit.git
+cd skill-audit/skill-audit
+npm ci --ignore-scripts
+npm run build
+npm link --ignore-scripts
 
 # Audit global skills
-npx @hungpg/skill-audit -g
-
-# Or use the installed CLI
 skill-audit -g
 
 # Lint mode (spec validation only - fast)
@@ -179,23 +176,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npx @hungpg/skill-audit -g -t 3.0 --json > results.json
+      - name: Build skill-audit from Git
+        run: |
+          git clone --depth 1 https://github.com/nfma/skill-audit.git /tmp/skill-audit
+          cd /tmp/skill-audit/skill-audit
+          npm ci --ignore-scripts
+          npm run build
+      - run: node /tmp/skill-audit/skill-audit/dist/index.js -g -t 3.0 --json > results.json
       - uses: actions/upload-artifact@v4
         with:
           name: audit-results
           path: results.json
 ```
 
+## SonarQube Cloud
+
+CI-based analysis uses `sonar-project.properties` for project
+`nfma_skill-audit`. Automatic Analysis must be disabled under **Administration
+→ Analysis Method** in SonarQube Cloud. Add a repository Actions secret named
+`SONAR_TOKEN`. Dependabot and fork pull requests, which cannot read Actions
+secrets, skip the scan with a warning; a missing token on any other run fails
+the job. The workflow type-checks, tests with LCOV coverage, builds, scans, and
+waits for the quality gate.
+
+This fork is distributed from Git and is not published to npm.
+
 ## Project Structure
 
 ```
 .
 ├── README.md              # This file (project overview)
-├── skill-audit/           # npm package
+├── skill-audit/           # Node.js/TypeScript package
 │   ├── README.md          # Package documentation
 │   ├── SKILL.md           # Agent skill definition
 │   ├── src/               # TypeScript source
-│   └── package.json       # npm manifest
+│   └── package.json       # Node package manifest
 └── rules/                 # Security patterns (future)
 ```
 
@@ -226,7 +241,7 @@ Enriched with real-time threat data from:
 
 Normal audits never start background network requests. Refresh feeds explicitly when needed:
 
-1. **Manual** - Run `npx @hungpg/skill-audit --update-db` anytime
+1. **Manual** - Run `skill-audit --update-db` anytime
 2. **Scheduled** - The repository's GitHub Actions workflow refreshes its published feed cache
 
 ⚠️ **Stale cache warning**: If feeds are >3 days old, audit output will warn you to update.
@@ -237,10 +252,10 @@ For environments without GitHub Actions:
 
 ```bash
 # Daily update at 2 AM (Linux/macOS)
-0 2 * * * npx @hungpg/skill-audit --update-db --quiet
+0 2 * * * skill-audit --update-db --quiet
 
 # Windows Task Scheduler
-schtasks /create /tn "skill-audit-update" /tr "npx @hungpg/skill-audit --update-db" /sc daily /st 02:00
+schtasks /create /tn "skill-audit-update" /tr "skill-audit --update-db" /sc daily /st 02:00
 ```
 
 ## Use Cases
@@ -279,3 +294,10 @@ schtasks /create /tn "skill-audit-update" /tr "npx @hungpg/skill-audit --update-
 ## License
 
 MIT
+
+## Attribution
+
+This independently maintained fork is authored by [Nuno Marques](https://github.com/nfma).
+It is based on the original [`skill-audit`](https://github.com/harrypham2000/skill-audit)
+work by [Hung Pham](https://github.com/harrypham2000), whose contribution remains
+credited here and in the repository history.

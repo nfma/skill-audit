@@ -23,6 +23,7 @@ skill-audit-review.md
 # skill-audit package (npm)
 skill-audit/node_modules/
 skill-audit/dist/
+skill-audit/coverage/
 skill-audit/.cache/
 skill-audit/docs/
 

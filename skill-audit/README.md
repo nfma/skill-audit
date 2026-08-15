@@ -14,57 +14,94 @@ Security auditing CLI for AI agent skills.
 
 ## Installation
 
-### Option 1: Install via npm (Recommended for CLI)
+### Option 1: Install the CLI from Git
 
 ```bash
-npm install -g @hungpg/skill-audit
+git clone https://github.com/nfma/skill-audit.git
+cd skill-audit/skill-audit
+npm ci --ignore-scripts
+npm run build
+npm link --ignore-scripts
 ```
 
-This installs the CLI globally and triggers the postinstall hook prompt.
+This fork is distributed from Git and is not published to npm. The commands
+above build the checked-out source and link its `skill-audit` executable.
 
-### Option 2: Install via bun (Fast Alternative)
-
-```bash
-bun install -g @hungpg/skill-audit
-```
-
-Bun is significantly faster than npm for installation.
-
-### Option 3: Install as a Skill (For Claude Code)
+### Option 2: Install as a Skill (For Claude Code)
 
 ```bash
-# Install from GitHub repo (not npm package name)
-npx skills add harrypham2000/skill-audit -g -y
+# Install the nested skill from this GitHub fork (not an npm package name)
+npx skills add nfma/skill-audit --skill skill-audit -g -y
 ```
 
 > ⚠️ **Important**: The skills CLI expects `owner/repo` format, not npm scoped packages.
-> - ✅ Correct: `harrypham2000/skill-audit`
+>
+> - ✅ Correct: `nfma/skill-audit`
 > - ❌ Incorrect: `@hungpg/skill-audit`
 
-### Option 4: Install for Qwen Code
+### Option 3: Install for Qwen Code
+
+Keep the Git checkout outside Qwen's skills directory, build the inner package,
+then link that package at the discovery path:
 
 ```bash
-# Clone to Qwen skills directory
-mkdir -p ~/.qwen/skills
-git clone https://github.com/harrypham2000/skill-audit.git ~/.qwen/skills/skill-audit
-cd ~/.qwen/skills/skill-audit/skill-audit
-npm install && npm run build
+mkdir -p "$HOME/.local/share"
+if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
+  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
+fi
+cd "$HOME/.local/share/skill-audit/skill-audit"
+npm ci --ignore-scripts
+npm run build
 
-# Or with bun (faster)
-bun install && bun run build
+skill_source="$HOME/.local/share/skill-audit/skill-audit"
+skill_target="$HOME/.qwen/skills/skill-audit"
+mkdir -p "$(dirname "$skill_target")"
+if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
+  echo "Move the existing $skill_target aside before continuing." >&2
+  exit 1
+fi
+ln -s "$skill_source" "$skill_target"
 ```
 
-### Option 5: Install for Gemini CLI
+A pre-existing `~/.qwen/skills/skill-audit` must be moved aside first; otherwise
+`ln -s` can silently create the link inside the old directory. If Qwen Code
+does not follow symlinks in your environment, run the same commands through
+the target check but use a copy instead of `ln -s`:
 
 ```bash
-# Clone to Gemini skills directory
-mkdir -p ~/.gemini/skills
-git clone https://github.com/harrypham2000/skill-audit.git ~/.gemini/skills/skill-audit
-cd ~/.gemini/skills/skill-audit/skill-audit
-npm install && npm run build
+cp -R "$skill_source" "$skill_target"
+```
 
-# Or with bun (faster)
-bun install && bun run build
+### Option 4: Install for Gemini CLI
+
+Reuse the same checkout outside the harness skills roots, or clone it there if
+you did not complete Option 3:
+
+```bash
+mkdir -p "$HOME/.local/share"
+if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
+  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
+fi
+cd "$HOME/.local/share/skill-audit/skill-audit"
+npm ci --ignore-scripts
+npm run build
+
+skill_source="$HOME/.local/share/skill-audit/skill-audit"
+skill_target="$HOME/.gemini/skills/skill-audit"
+mkdir -p "$(dirname "$skill_target")"
+if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
+  echo "Move the existing $skill_target aside before continuing." >&2
+  exit 1
+fi
+ln -s "$skill_source" "$skill_target"
+```
+
+A pre-existing `~/.gemini/skills/skill-audit` must be moved aside first. If
+Gemini CLI does not follow symlinks in your environment, run the same commands
+through the target check but use a copy instead of `ln -s`:
+
+```bash
+cp -R "$skill_source" "$skill_target"
 ```
 
 ## About the Postinstall Script
@@ -325,7 +362,7 @@ The maintenance commands can download vulnerability-intelligence snapshots:
 
 **Feed refresh:**
 - Daily root GitHub Actions workflow maintains a CI cache
-- Manual: `npx skill-audit --update-db`
+- Manual: `skill-audit --update-db`
 - Audits and the informational postinstall script do not refresh feeds in the background
 
 **Current audit behavior:** Ordinary audits do not read the KEV, EPSS, or NVD maintenance caches and do not populate `intelFindings` from them. The exported snapshots are not an offline-audit input. Dependency scanning continues to use its configured live scanners and OSV fallback.
@@ -363,3 +400,10 @@ Note: NVD API rate limits apply (5 requests/30 sec without API key). Set `NVD_AP
 **Feed refresh fails**: Re-run `skill-audit --update-db`; installation and ordinary audits do not depend on a background refresh.
 
 **Offline snapshots**: `--download-offline-db <dir>` exports feed data for external inspection; ordinary audits do not consume these files.
+
+## Attribution
+
+This fork is authored and maintained by [Nuno Marques](https://github.com/nfma).
+It builds on the original [`skill-audit`](https://github.com/harrypham2000/skill-audit)
+work by [Hung Pham](https://github.com/harrypham2000), whose contribution remains
+credited here, in `package.json`, and in the repository history.

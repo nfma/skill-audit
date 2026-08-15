@@ -13,6 +13,7 @@
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/index.js --update-db",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json"
   },
@@ -40,7 +41,10 @@
     "prompt-injection",
     "llm-security"
   ],
-  "author": "Hung Pham",
+  "author": "Nuno Marques (https://github.com/nfma)",
+  "contributors": [
+    "Hung Pham (https://github.com/harrypham2000)"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -64,6 +68,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "tsx": "^4.7.0",
     "typescript": "^5.3.0",
     "vitest": "^4.1.0"

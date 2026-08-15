@@ -33,8 +33,12 @@ Security auditing CLI for AI agent skills.
 ## Quick Start
 
 ```bash
-# Install globally
-npm install -g @hungpg/skill-audit
+# Clone this fork and build the CLI from source
+git clone https://github.com/nfma/skill-audit.git
+cd skill-audit/skill-audit
+npm ci --ignore-scripts
+npm run build
+npm link --ignore-scripts
 
 # Audit skills
 skill-audit -g              # Audit global skills

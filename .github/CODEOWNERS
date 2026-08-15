@@ -2,17 +2,17 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default owner for everything in the repo
-* @harrypham2000
+* @nfma
 
 # Critical files requiring owner review
-/.github/workflows/ @harrypham2000
-/.github/dependabot.yml @harrypham2000
-/.github/CODEOWNERS @harrypham2000
+/.github/workflows/ @nfma
+/.github/dependabot.yml @nfma
+/.github/CODEOWNERS @nfma
 
 # Package configuration
-/skill-audit/package.json @harrypham2000
-/skill-audit/package-lock.json @harrypham2000
+/skill-audit/package.json @nfma
+/skill-audit/package-lock.json @nfma
 
 # Security-related files
-/skill-audit/src/security.ts @harrypham2000
-/skill-audit/rules/ @harrypham2000
+/skill-audit/src/security.ts @nfma
+/skill-audit/rules/ @nfma
