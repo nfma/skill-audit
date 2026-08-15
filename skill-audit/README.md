@@ -40,28 +40,67 @@ npx skills add nfma/skill-audit -g -y
 
 ### Option 3: Install for Qwen Code
 
-```bash
-# Clone to Qwen skills directory
-mkdir -p ~/.qwen/skills
-git clone https://github.com/nfma/skill-audit.git ~/.qwen/skills/skill-audit
-cd ~/.qwen/skills/skill-audit/skill-audit
-npm install && npm run build
+Keep the Git checkout outside Qwen's skills directory, build the inner package,
+then link that package at the discovery path:
 
-# Or with bun (faster)
-bun install && bun run build
+```bash
+mkdir -p "$HOME/.local/share"
+if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
+  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
+fi
+cd "$HOME/.local/share/skill-audit/skill-audit"
+npm ci --ignore-scripts
+npm run build
+
+skill_source="$HOME/.local/share/skill-audit/skill-audit"
+skill_target="$HOME/.qwen/skills/skill-audit"
+mkdir -p "$(dirname "$skill_target")"
+if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
+  echo "Move the existing $skill_target aside before continuing." >&2
+  exit 1
+fi
+ln -s "$skill_source" "$skill_target"
+```
+
+A pre-existing `~/.qwen/skills/skill-audit` must be moved aside first; otherwise
+`ln -s` can silently create the link inside the old directory. If Qwen Code
+does not follow symlinks in your environment, run the same commands through
+the target check but use a copy instead of `ln -s`:
+
+```bash
+cp -R "$skill_source" "$skill_target"
 ```
 
 ### Option 4: Install for Gemini CLI
 
-```bash
-# Clone to Gemini skills directory
-mkdir -p ~/.gemini/skills
-git clone https://github.com/nfma/skill-audit.git ~/.gemini/skills/skill-audit
-cd ~/.gemini/skills/skill-audit/skill-audit
-npm install && npm run build
+Reuse the same checkout outside the harness skills roots, or clone it there if
+you did not complete Option 3:
 
-# Or with bun (faster)
-bun install && bun run build
+```bash
+mkdir -p "$HOME/.local/share"
+if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
+  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
+fi
+cd "$HOME/.local/share/skill-audit/skill-audit"
+npm ci --ignore-scripts
+npm run build
+
+skill_source="$HOME/.local/share/skill-audit/skill-audit"
+skill_target="$HOME/.gemini/skills/skill-audit"
+mkdir -p "$(dirname "$skill_target")"
+if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
+  echo "Move the existing $skill_target aside before continuing." >&2
+  exit 1
+fi
+ln -s "$skill_source" "$skill_target"
+```
+
+A pre-existing `~/.gemini/skills/skill-audit` must be moved aside first. If
+Gemini CLI does not follow symlinks in your environment, run the same commands
+through the target check but use a copy instead of `ln -s`:
+
+```bash
+cp -R "$skill_source" "$skill_target"
 ```
 
 ## About the Postinstall Script
