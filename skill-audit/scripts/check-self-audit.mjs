@@ -5,7 +5,8 @@ import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+const EXCLUDED_FINDING_DIRECTORIES = ["dist/"];
 const FINDING_BUCKETS = [
   "specFindings",
   "securityFindings",
@@ -103,6 +104,12 @@ function normalizeReport(report, skillRoot) {
         }));
       }),
     )
+    .filter(
+      (finding) =>
+        !EXCLUDED_FINDING_DIRECTORIES.some((directory) =>
+          finding.file.startsWith(directory),
+        ),
+    )
     .sort(compareFindings);
 }
 
@@ -123,21 +130,14 @@ function findingKey(finding) {
   ]);
 }
 
-function rationaleFor(file) {
-  if (file === "package-lock.json") {
-    return "Reviewed false positive in an npm registry integrity hash.";
-  }
-  if (file.startsWith("rules/") || /(^|\/)security\.(js|ts)$/.test(file)) {
-    return "Reviewed self-reference in a detector definition.";
-  }
-  if (file.includes(".test.") || file === "scripts/test-audit.sh") {
-    return "Reviewed malicious or PII regression fixture.";
-  }
-  return "Reviewed security documentation or example fixture.";
-}
-
 function baselineFinding(finding) {
-  return { ...finding, rationale: rationaleFor(finding.file) };
+  return {
+    ...finding,
+    review: {
+      status: "unreviewed",
+      rationale: "",
+    },
+  };
 }
 
 function validateBaseline(baseline) {
@@ -150,9 +150,13 @@ function validateBaseline(baseline) {
     throw new TypeError("Baseline must contain a findings array");
   }
   for (const finding of baseline.findings) {
-    if (typeof finding.rationale !== "string" || finding.rationale === "") {
+    if (
+      finding.review?.status !== "reviewed" ||
+      typeof finding.review.rationale !== "string" ||
+      finding.review.rationale.trim() === ""
+    ) {
       throw new Error(
-        `Baseline finding lacks a rationale: ${findingKey(finding)}`,
+        `Baseline finding is not explicitly reviewed: ${findingKey(finding)}`,
       );
     }
   }
@@ -228,7 +232,7 @@ function main(argv) {
       `${JSON.stringify(baseline, null, 2)}\n`,
     );
     console.log(
-      `Wrote ${findings.length} reviewed findings to ${options.baselinePath}`,
+      `Wrote ${findings.length} unreviewed findings to ${options.baselinePath}; explicit review is required before use.`,
     );
     return;
   }
