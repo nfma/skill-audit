@@ -26,9 +26,12 @@ import {
 import {
   EMBEDDED_DEFAULT_PATTERNS_BASE64,
   EMBEDDED_RULES_SHA256,
+  PACKAGE_VERSION,
 } from "./generated/release-data.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const releaseTag = `v${PACKAGE_VERSION}`;
+const mismatchedReleaseTag = `${releaseTag}-mismatch`;
 let releaseDirectory: string;
 
 function copyReleaseDirectory(): { root: string; release: string } {
@@ -39,7 +42,7 @@ function copyReleaseDirectory(): { root: string; release: string } {
 }
 
 function descriptorPath(release: string): string {
-  return join(release, "skill-audit-v0.10.0-release.json");
+  return join(release, `skill-audit-${releaseTag}-release.json`);
 }
 
 function readDescriptor(release: string): ReleaseDescriptor {
@@ -134,7 +137,7 @@ async function expectVerificationFailure(
       verifyRelease({
         packageRoot,
         releaseDirectory: copied.release,
-        releaseTag: "v0.10.0",
+        releaseTag,
         sourceCommit: "a".repeat(40),
       }),
     ).rejects.toThrow(message);
@@ -148,7 +151,7 @@ beforeAll(async () => {
   await buildRelease({
     packageRoot,
     outputDirectory: releaseDirectory,
-    releaseTag: "v0.10.0",
+    releaseTag,
     sourceCommit: "a".repeat(40),
   });
 });
@@ -160,13 +163,13 @@ afterAll(() => {
 describe("release bundle", () => {
   it("creates exactly the three content-addressed assets", () => {
     expect(readdirSync(releaseDirectory).sort(compareUtf8Bytes)).toEqual([
-      "skill-audit-v0.10.0-release.json",
-      "skill-audit-v0.10.0.mjs",
-      "skill-audit-v0.10.0.mjs.sha256",
+      `skill-audit-${releaseTag}-release.json`,
+      `skill-audit-${releaseTag}.mjs`,
+      `skill-audit-${releaseTag}.mjs.sha256`,
     ]);
 
     const executable = readFileSync(
-      join(releaseDirectory, "skill-audit-v0.10.0.mjs"),
+      join(releaseDirectory, `skill-audit-${releaseTag}.mjs`),
     );
     const text = executable.toString("utf8");
     expect(executable.byteLength).toBeGreaterThan(0);
@@ -179,16 +182,21 @@ describe("release bundle", () => {
     const verification = await verifyRelease({
       packageRoot,
       releaseDirectory,
-      releaseTag: "v0.10.0",
+      releaseTag,
       sourceCommit: "a".repeat(40),
     });
-    expect(verification.message).toContain("Verified skill-audit-v0.10.0.mjs");
+    expect(verification.message).toContain(
+      `Verified skill-audit-${releaseTag}.mjs`,
+    );
   });
 
   it("fails closed at the API and CLI boundaries when embedded rules are corrupted", async () => {
     const copied = copyReleaseDirectory();
     try {
-      const executablePath = join(copied.release, "skill-audit-v0.10.0.mjs");
+      const executablePath = join(
+        copied.release,
+        `skill-audit-${releaseTag}.mjs`,
+      );
       const executableText = readFileSync(executablePath, "utf8");
       const replacementPrefix =
         EMBEDDED_DEFAULT_PATTERNS_BASE64[0] === "A" ? "B" : "A";
@@ -234,7 +242,10 @@ describe("release bundle", () => {
   });
 
   it("exports exactly the six supported functions", async () => {
-    const executablePath = join(releaseDirectory, "skill-audit-v0.10.0.mjs");
+    const executablePath = join(
+      releaseDirectory,
+      `skill-audit-${releaseTag}.mjs`,
+    );
     const imported = await import(
       `${pathToFileURL(executablePath).href}?test=${Date.now()}`
     );
@@ -248,7 +259,7 @@ describe("release bundle", () => {
       buildRelease({
         packageRoot,
         outputDirectory: releaseDirectory,
-        releaseTag: "v0.10.1",
+        releaseTag: mismatchedReleaseTag,
         sourceCommit: "a".repeat(40),
       }),
     ).rejects.toThrow("does not match package version");
@@ -292,7 +303,7 @@ describe("release bundle", () => {
       verifyRelease({
         packageRoot,
         releaseDirectory,
-        releaseTag: "v0.10.1",
+        releaseTag: mismatchedReleaseTag,
         sourceCommit: "a".repeat(40),
       }),
     ).rejects.toThrow("tag does not match");

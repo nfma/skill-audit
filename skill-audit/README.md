@@ -17,7 +17,7 @@ Security auditing CLI for AI agent skills.
 ### Install the executable
 
 ```bash
-version=v0.10.0
+version=v0.10.1
 gh release download "$version" \
   --repo nfma/skill-audit \
   --pattern "skill-audit-$version.mjs" \

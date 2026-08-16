@@ -8,6 +8,7 @@ const { buildMock } = vi.hoisted(() => ({ buildMock: vi.fn() }));
 vi.mock("esbuild", () => ({ build: buildMock }));
 
 import { buildRelease } from "../scripts/build-release.js";
+import { PACKAGE_VERSION } from "./generated/release-data.js";
 import { RELEASE_MAX_BYTES } from "./release-assets.js";
 
 const temporaryDirectories: string[] = [];
@@ -48,7 +49,7 @@ async function expectBuildGuard(
     buildRelease({
       packageRoot,
       outputDirectory,
-      releaseTag: "v0.10.0",
+      releaseTag: `v${PACKAGE_VERSION}`,
       sourceCommit: "a".repeat(40),
     }),
   ).rejects.toThrow(message);
