@@ -43,7 +43,8 @@ export function validateSkillSpec(
   try {
     const resolvedSkillRoot = realpathSync(skillPath);
     const resolvedSkillMdPath = realpathSync(
-      join(resolvedSkillRoot, "SKILL.md"),
+      // The root is canonicalized and the joined target is checked below.
+      join(resolvedSkillRoot, "SKILL.md"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     );
 
     if (!isWithinRoot(resolvedSkillRoot, resolvedSkillMdPath)) {

@@ -443,15 +443,15 @@ export function reportCommandAssessment(
 export function getEnvironmentBaselinePath(
   options: EnvironmentDoctorOptions = {},
 ): string {
-  return (
-    options.baselinePath ||
-    join(
-      options.home || DEFAULT_HOME,
-      ".skill-audit",
-      "baselines",
-      "environment.json",
-    )
+  // `home` is the explicit environment root; all appended components are static.
+  const defaultBaselinePath = join(
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    options.home || DEFAULT_HOME,
+    ".skill-audit",
+    "baselines",
+    "environment.json",
   );
+  return options.baselinePath || defaultBaselinePath;
 }
 
 function getBaselinePath(options: EnvironmentDoctorOptions): string {
@@ -484,7 +484,7 @@ function buildShellFiles(home: string): string[] {
     ".profile",
     ".zshrc",
     join(".config", "fish", "config.fish"),
-  ].map((path) => join(home, path));
+  ].map((path) => join(home, path)); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 }
 
 function buildAgentConfigFiles(home: string): string[] {
@@ -495,7 +495,7 @@ function buildAgentConfigFiles(home: string): string[] {
     join(".qwen", "settings.json"),
     join(".gemini", "settings.json"),
     join(".amp", "settings.json"),
-  ].map((path) => join(home, path));
+  ].map((path) => join(home, path)); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 }
 
 function buildWorkspaceInstructionFiles(cwd: string): string[] {
@@ -505,7 +505,7 @@ function buildWorkspaceInstructionFiles(cwd: string): string[] {
     "QWEN.md",
     "GEMINI.md",
     join(".cursor", "rules"),
-  ].map((path) => join(cwd, path));
+  ].map((path) => join(cwd, path)); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 }
 
 function buildWorkspacePackageFiles(cwd: string): string[] {
@@ -515,7 +515,7 @@ function buildWorkspacePackageFiles(cwd: string): string[] {
     "package-lock.json",
     "pnpm-lock.yaml",
     "yarn.lock",
-  ].map((path) => join(cwd, path));
+  ].map((path) => join(cwd, path)); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 }
 
 function scanFiles(

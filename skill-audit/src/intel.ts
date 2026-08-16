@@ -1009,7 +1009,8 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     const kevRecords = await fetchKEV();
     if (kevRecords.length > 0) {
       writeFileSync(
-        join(outputDir, "kev.json"),
+        // The caller selects the export directory; the filename is fixed here.
+        join(outputDir, "kev.json"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         JSON.stringify(
           { fetchedAt: new Date().toISOString(), records: kevRecords },
           null,
@@ -1025,7 +1026,8 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     const epssRecords = await fetchEPSS();
     if (epssRecords.length > 0) {
       writeFileSync(
-        join(outputDir, "epss.json"),
+        // The caller selects the export directory; the filename is fixed here.
+        join(outputDir, "epss.json"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         JSON.stringify(
           { fetchedAt: new Date().toISOString(), records: epssRecords },
           null,
@@ -1041,7 +1043,8 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     const nvdRecords = await fetchNVD();
     if (nvdRecords.length > 0) {
       writeFileSync(
-        join(outputDir, "nvd.json"),
+        // The caller selects the export directory; the filename is fixed here.
+        join(outputDir, "nvd.json"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         JSON.stringify(
           { fetchedAt: new Date().toISOString(), records: nvdRecords },
           null,
@@ -1075,7 +1078,8 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
       },
     };
     writeFileSync(
-      join(outputDir, "metadata.json"),
+      // The caller selects the export directory; the filename is fixed here.
+      join(outputDir, "metadata.json"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       JSON.stringify(metadata, null, 2),
     );
 

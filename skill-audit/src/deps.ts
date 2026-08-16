@@ -313,7 +313,8 @@ function scanWithOSVLockfile(resolvedPath: string): Finding[] {
     try {
       const output = execFileSync(
         "osv-scanner",
-        ["--json", "-r", join(resolvedPath, lockfile)],
+        // The filename is selected from the fixed lockfile allowlist above.
+        ["--json", "-r", join(resolvedPath, lockfile)], // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       );
 

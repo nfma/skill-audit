@@ -9,7 +9,8 @@ const workflows = readdirSync(workflowsRoot)
   .filter((name) => name.endsWith(".yml"))
   .map((name) => ({
     name,
-    content: readFileSync(join(workflowsRoot, name), "utf8"),
+    // `name` comes directly from this one directory's entries.
+    content: readFileSync(join(workflowsRoot, name), "utf8"), // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   }));
 
 describe("repository workflow hardening", () => {
