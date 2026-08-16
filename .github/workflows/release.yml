@@ -244,26 +244,70 @@ jobs:
         run: |
           set -euo pipefail
           release_json="$RUNNER_TEMP/release-draft.json"
-          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$release_json"
-          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          max_attempts=6
+          sleep_seconds=1
+          for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+            if gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$release_json"; then
+              validator_exit=0
+              ATTEMPT="$attempt" MAX_ATTEMPTS="$max_attempts" RELEASE_JSON="$release_json" node --input-type=module <<'NODE' || validator_exit=$?
           import { readFileSync } from "node:fs";
+
+          const attempt = `attempt ${process.env.ATTEMPT}/${process.env.MAX_ATTEMPTS}`;
+          const annotation = process.env.ATTEMPT === process.env.MAX_ATTEMPTS ? "error" : "warning";
+          const observed = (value) => JSON.stringify(value) ?? String(value);
+          const fail = (label, actual, expected) => {
+            console.error(`::${annotation}::${attempt}: ${label}; observed=${observed(actual)} expected=${observed(expected)}`);
+            process.exit(1);
+          };
           const releases = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8")).flat();
           const matches = releases.filter(release => release.tag_name === process.env.RELEASE_TAG);
-          if (matches.length !== 1) process.exit(1);
+          if (matches.length !== 1) {
+            fail(
+              "release enumeration match count",
+              { count: matches.length, releaseIds: matches.map(release => release.id) },
+              { count: 1 },
+            );
+          }
           const [release] = matches;
           const expected = new Map([
             [`skill-audit-${process.env.RELEASE_TAG}.mjs`, `sha256:${process.env.EXPECTED_EXECUTABLE_SHA256}`],
             [`skill-audit-${process.env.RELEASE_TAG}.mjs.sha256`, `sha256:${process.env.EXPECTED_CHECKSUM_SHA256}`],
             [`skill-audit-${process.env.RELEASE_TAG}-release.json`, `sha256:${process.env.EXPECTED_DESCRIPTOR_SHA256}`],
           ]);
-          if (release.draft !== true) process.exit(1);
-          if (!Array.isArray(release.assets) || release.assets.length !== expected.size) process.exit(1);
+          if (release.draft !== true) fail("release draft state", release.draft, true);
+          if (!Array.isArray(release.assets)) fail("release assets type", release.assets, "array");
+          if (release.assets.length !== expected.size) {
+            fail("release asset count", release.assets.length, expected.size);
+          }
           for (const asset of release.assets) {
-            if (asset.state !== "uploaded" || asset.digest !== expected.get(asset.name)) process.exit(1);
+            const expectedDigest = expected.get(asset.name);
+            if (expectedDigest === undefined) {
+              fail("release asset name", asset.name, [...expected.keys()]);
+            }
+            if (asset.state !== "uploaded") fail(`asset ${asset.name} state`, asset.state, "uploaded");
+            if (asset.digest !== expectedDigest) fail(`asset ${asset.name} digest`, asset.digest, expectedDigest);
             expected.delete(asset.name);
           }
-          if (expected.size !== 0) process.exit(1);
+          if (expected.size !== 0) fail("missing release assets", [...expected.keys()], []);
           NODE
+              if ((validator_exit == 0)); then
+                echo "attempt $attempt/$max_attempts: draft release asset verification succeeded"
+                break
+              fi
+            else
+              api_exit=$?
+              annotation=warning
+              if ((attempt == max_attempts)); then annotation=error; fi
+              echo "::$annotation::attempt $attempt/$max_attempts: release enumeration API failed; observed_exit=$api_exit expected_exit=0" >&2
+            fi
+            if ((attempt == max_attempts)); then
+              echo "::error::draft release asset verification failed after $max_attempts attempts" >&2
+              exit 1
+            fi
+            echo "attempt $attempt/$max_attempts: retrying with fresh release data in ${sleep_seconds}s" >&2
+            sleep "$sleep_seconds"
+            sleep_seconds=$((sleep_seconds * 2))
+          done
 
       - name: Publish and confirm the immutable release
         env:
@@ -273,15 +317,45 @@ jobs:
           set -euo pipefail
           gh release edit "$RELEASE_TAG" --draft=false
           release_json="$RUNNER_TEMP/release-published.json"
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release_json"
-          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          max_attempts=6
+          sleep_seconds=1
+          for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release_json"; then
+              validator_exit=0
+              ATTEMPT="$attempt" MAX_ATTEMPTS="$max_attempts" RELEASE_JSON="$release_json" node --input-type=module <<'NODE' || validator_exit=$?
           import { readFileSync } from "node:fs";
+
+          const attempt = `attempt ${process.env.ATTEMPT}/${process.env.MAX_ATTEMPTS}`;
+          const annotation = process.env.ATTEMPT === process.env.MAX_ATTEMPTS ? "error" : "warning";
           const release = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8"));
-          if (
-            release.tag_name !== process.env.RELEASE_TAG ||
-            release.draft !== false ||
-            release.immutable !== true ||
-            !Array.isArray(release.assets) ||
-            release.assets.length !== 3
-          ) process.exit(1);
+          const observed = (value) => JSON.stringify(value) ?? String(value);
+          const fail = (label, actual, expected) => {
+            console.error(`::${annotation}::${attempt}: ${label}; observed=${observed(actual)} expected=${observed(expected)}`);
+            process.exit(1);
+          };
+          if (release.tag_name !== process.env.RELEASE_TAG) {
+            fail("published release tag", release.tag_name, process.env.RELEASE_TAG);
+          }
+          if (release.draft !== false) fail("published release draft state", release.draft, false);
+          if (release.immutable !== true) fail("published release immutable state", release.immutable, true);
+          if (!Array.isArray(release.assets)) fail("published release assets type", release.assets, "array");
+          if (release.assets.length !== 3) fail("published release asset count", release.assets.length, 3);
           NODE
+              if ((validator_exit == 0)); then
+                echo "attempt $attempt/$max_attempts: published release verification succeeded"
+                break
+              fi
+            else
+              api_exit=$?
+              annotation=warning
+              if ((attempt == max_attempts)); then annotation=error; fi
+              echo "::$annotation::attempt $attempt/$max_attempts: published release lookup failed; observed_exit=$api_exit expected_exit=0" >&2
+            fi
+            if ((attempt == max_attempts)); then
+              echo "::error::published release verification failed after $max_attempts attempts" >&2
+              exit 1
+            fi
+            echo "attempt $attempt/$max_attempts: retrying with fresh published release data in ${sleep_seconds}s" >&2
+            sleep "$sleep_seconds"
+            sleep_seconds=$((sleep_seconds * 2))
+          done
