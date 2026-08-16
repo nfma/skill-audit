@@ -1,7 +1,7 @@
 export interface SkillInfo {
   name: string;
   path: string;
-  scope: "global" | "project";
+  scope: 'global' | 'project';
   agents: string[];
 }
 
@@ -18,27 +18,27 @@ export interface SkillManifest {
   files: string[];
 }
 
-export type FindingCategory =
-  | "PI" // Prompt Injection
-  | "BM" // Behavioral Manipulation
-  | "SC" // Secrets/Credentials
-  | "CE" // Code Execution
-  | "TM" // Tool Misuse
-  | "PII" // PII Detection (NEW)
-  | "COMP" // Compliance (NEW)
-  | "MC" // Malicious Content
-  | "HT" // Harmful Techniques
-  | "RA" // Resource Abuse
-  | "SPEC" // Specification
-  | "PROV" // Provenance
-  | "INTEL" // Intelligence
-  | "ENV"; // Agent environment risks
+export type FindingCategory = 
+  | 'PI'   // Prompt Injection
+  | 'BM'   // Behavioral Manipulation
+  | 'SC'   // Secrets/Credentials
+  | 'CE'   // Code Execution
+  | 'TM'   // Tool Misuse
+  | 'PII'  // PII Detection (NEW)
+  | 'COMP' // Compliance (NEW)
+  | 'MC'   // Malicious Content
+  | 'HT'   // Harmful Techniques
+  | 'RA'   // Resource Abuse
+  | 'SPEC' // Specification
+  | 'PROV' // Provenance
+  | 'INTEL' // Intelligence
+  | 'ENV';  // Agent environment risks
 
 export interface Finding {
   id: string;
   category: FindingCategory;
   asi: string;
-  severity: "critical" | "high" | "medium" | "low" | "info";
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   file: string;
   line?: number;
   message: string;
@@ -54,13 +54,13 @@ export interface GroupedAuditResult {
   manifest?: SkillManifest;
   specFindings: Finding[];
   securityFindings: Finding[];
-  piiFindings: Finding[]; // NEW: PII detection findings
-  complianceFindings: Finding[]; // NEW: Compliance findings
+  piiFindings: Finding[];  // NEW: PII detection findings
+  complianceFindings: Finding[];  // NEW: Compliance findings
   intelFindings: Finding[];
   riskScore: number;
-  riskLevel: "safe" | "risky" | "dangerous" | "malicious";
-  complianceScore?: number; // NEW: Overall compliance score (0-100)
-  complianceRiskLevel?: "minimal" | "limited" | "high" | "unacceptable"; // NEW
+  riskLevel: 'safe' | 'risky' | 'dangerous' | 'malicious';
+  complianceScore?: number;  // NEW: Overall compliance score (0-100)
+  complianceRiskLevel?: 'minimal' | 'limited' | 'high' | 'unacceptable';  // NEW
 }
 
 export interface AuditResult {
@@ -68,5 +68,5 @@ export interface AuditResult {
   manifest?: SkillManifest;
   findings: Finding[];
   riskScore: number;
-  riskLevel: "safe" | "risky" | "dangerous" | "malicious";
+  riskLevel: 'safe' | 'risky' | 'dangerous' | 'malicious';
 }

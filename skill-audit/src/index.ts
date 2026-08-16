@@ -29,9 +29,9 @@ import {
   runEnvironmentDoctor,
   writeEnvironmentBaseline,
 } from "./environment.js";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { basename, dirname, join } from "path";
+import { readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Finding, GroupedAuditResult, SkillInfo } from "./types.js";
 import { reportGroupedResults } from "./grouped-reporter.js";
 
@@ -81,7 +81,7 @@ program
   .option(
     "-t, --threshold <score>",
     "Risk score threshold (default with --block: 3.0)",
-    parseFloat,
+    Number.parseFloat,
   )
   .option("--no-deps", "Skip dependency scanning (faster)")
   .option("--compliance", "Run heuristic compliance checks (audit mode only)")
@@ -114,7 +114,7 @@ program
   .option(
     "--hook-threshold <score>",
     "Risk threshold for hook (default: 3.0)",
-    parseFloat,
+    Number.parseFloat,
   )
   .option("--hook-status", "Show current hook status")
   .option(

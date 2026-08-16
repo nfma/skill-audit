@@ -9,7 +9,13 @@ const workflow = readFileSync(
   "utf8",
 );
 const dependabotWorkflow = readFileSync(
-  join(packageRoot, "..", ".github", "workflows", "dependabot-auto-merge.yml"),
+  join(
+    packageRoot,
+    "..",
+    ".github",
+    "workflows",
+    "dependabot-auto-merge.yml",
+  ),
   "utf8",
 );
 

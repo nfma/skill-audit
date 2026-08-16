@@ -31,12 +31,10 @@ describe("validateSkillSpec SKILL.md containment", () => {
 
     expect(result.valid).toBe(false);
     expect(result.manifest).toBeUndefined();
-    expect(result.findings).toContainEqual(
-      expect.objectContaining({
-        id: "SPEC-18",
-        severity: "critical",
-      }),
-    );
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      id: "SPEC-18",
+      severity: "critical",
+    }));
   });
 
   it("validates a normal SKILL.md inside the resolved skill root", () => {
@@ -50,8 +48,6 @@ describe("validateSkillSpec SKILL.md containment", () => {
 
     expect(result.valid).toBe(true);
     expect(result.manifest?.name).toBe("fixture");
-    expect(result.findings).not.toContainEqual(
-      expect.objectContaining({ id: "SPEC-18" }),
-    );
+    expect(result.findings).not.toContainEqual(expect.objectContaining({ id: "SPEC-18" }));
   });
 });

@@ -45,10 +45,16 @@ describe("repository workflow hardening", () => {
     );
 
     expect(combined).not.toMatch(/\bnpm\s+publish\b/);
-    expect(selfAudit?.content).toContain("--path .");
     expect(selfAudit?.content).toContain("check-self-audit.mjs");
+    expect(selfAudit?.content).toContain("--path .");
     expect(selfAudit?.content).toContain(
       "--baseline ../.self-audit-baseline.json",
     );
+
+    const quality = workflows.find(
+      (workflow) => workflow.name === "quality.yml",
+    );
+    expect(quality?.content).toContain("FORMAT_BASE:");
+    expect(quality?.content).toContain("uvx --no-build");
   });
 });

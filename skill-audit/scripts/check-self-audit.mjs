@@ -79,7 +79,9 @@ function normalizeFindingPath(file, skillRoot) {
 function normalizeReport(report, skillRoot) {
   const results = Array.isArray(report) ? report : report.results;
   if (!Array.isArray(results)) {
-    throw new Error("Audit report must be an array or contain a results array");
+    throw new TypeError(
+      "Audit report must be an array or contain a results array",
+    );
   }
 
   return results
@@ -87,7 +89,7 @@ function normalizeReport(report, skillRoot) {
       FINDING_BUCKETS.flatMap((bucket) => {
         const findings = result[bucket];
         if (!Array.isArray(findings)) {
-          throw new Error(`Audit result is missing ${bucket}`);
+          throw new TypeError(`Audit result is missing ${bucket}`);
         }
         return findings.map((finding) => ({
           bucket,
@@ -145,7 +147,7 @@ function validateBaseline(baseline) {
     );
   }
   if (!Array.isArray(baseline.findings)) {
-    throw new Error("Baseline must contain a findings array");
+    throw new TypeError("Baseline must contain a findings array");
   }
   for (const finding of baseline.findings) {
     if (typeof finding.rationale !== "string" || finding.rationale === "") {

@@ -52,7 +52,7 @@ jobs:
             baseline_commit=$(git rev-parse HEAD^)
           fi
 
-          uvx --from semgrep==1.173.0 semgrep scan \
+          uvx --no-build --from semgrep==1.173.0 semgrep scan \
             --config p/default \
             --config p/security-audit \
             --baseline-commit "$baseline_commit" \

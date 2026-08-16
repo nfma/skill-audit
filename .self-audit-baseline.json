@@ -9,7 +9,7 @@
       "severity": "high",
       "file": "dist/security.js",
       "message": "PII written to file - potential data staging",
-      "evidenceSha256": "f925395761b6b435b42ecfc227a954251eaf6968f22208e80fa5152351becb62",
+      "evidenceSha256": "e86afe6dd9ea52952e6af60ab74f486a1c0b13ec7aa7272b9a14da828fd032ef",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -20,7 +20,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "PII written to file - potential data staging",
-      "evidenceSha256": "efbd7ec8e307f6ccfa91e60943acd6b774ea44d347edeadbee77406db42923a8",
+      "evidenceSha256": "b1fb78873132977b64b27490ddf1fd060fd180546befd7f7bdb813cfac4f7a37",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -31,7 +31,7 @@
       "severity": "critical",
       "file": "dist/security.js",
       "message": "Vietnam CCCD exfiltration pattern",
-      "evidenceSha256": "e8e9745b814ea3097889c1e08ca0517b794258c9c5124adb2d80bc2f67949af7",
+      "evidenceSha256": "dc95e8b2977fd1bf9a4a87b0b184aff6bd37505d7c485a499c7f8627c3c44cb9",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -42,7 +42,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "Vietnam CCCD exfiltration pattern",
-      "evidenceSha256": "4dbbd91fa954b1e890e885a19b92b1d258948f8ab18629253ce5cc57588f1534",
+      "evidenceSha256": "b4ddc78e5c4077c9ad3a39be61556ec49fbce7e819b539115f304d04c8f04646",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -53,7 +53,7 @@
       "severity": "critical",
       "file": "dist/security.js",
       "message": "Vietnam Tax ID exfiltration pattern",
-      "evidenceSha256": "8578467cb13057e6c26771863703a6b58d94ec3563c0ed969878924ec6f138aa",
+      "evidenceSha256": "3578368a9d68a39c1d014f4519b160c40cc5482fcd2bf5eb1f7fe16857f70252",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -64,7 +64,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "Vietnam Tax ID exfiltration pattern",
-      "evidenceSha256": "c467a42e706b4be908f5937fc867584635d51e23952b49fcaed7042f64ab77c3",
+      "evidenceSha256": "5b4b3299fe68805dce42fe40dd102dbf53bd16fa9319ebcfa9b14ed10b1fa060",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -240,7 +240,7 @@
       "severity": "medium",
       "file": "dist/security.js",
       "message": "Subprocess with shell=True",
-      "evidenceSha256": "456063d827f0fa692b6fcd702d84fd25bf942ec3036c2677aef7c6e5d9565ea8",
+      "evidenceSha256": "2a391ada510e1e4a4e0487e62804c6bc39ffb94d6b4c2fc7a7bc7fe1cd8e719e",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -262,7 +262,7 @@
       "severity": "medium",
       "file": "src/security.ts",
       "message": "Subprocess with shell=True",
-      "evidenceSha256": "d81fdfd5ba23896dc0e44e3fa93425ced733aaf97f747e9cfcfac99d0fe080d1",
+      "evidenceSha256": "b9c223ca40611681e511bb72c7021124f6b46b1db6eee4e81fdbc0ea9fb83574",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -273,7 +273,7 @@
       "severity": "high",
       "file": "dist/security.js",
       "message": "os.system() call - shell injection risk",
-      "evidenceSha256": "e61dc88a80d5e382e34c91116959ce5d7e2b9a8a4aa99e8f50d02631149c052b",
+      "evidenceSha256": "1435295b11794ebce62493ade39e4188e13f9e963d5d9f150b904d181cdefc53",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -295,7 +295,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "os.system() call - shell injection risk",
-      "evidenceSha256": "1d4df855cbdf1f6a756a97df2e408e28880aef34243a6c11a22f348936cccc80",
+      "evidenceSha256": "c9727f288d2d41e51a407cd23730bb7bb6de672d73ea180bd39bb6d7f5bba6fa",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -317,7 +317,7 @@
       "severity": "critical",
       "file": "dist/security.js",
       "message": ".env file reference (potential secret exposure)",
-      "evidenceSha256": "72f55aa399ed64fb2f96457b4c0f7a8eb47c6739f75356e7879c18b889d5fd69",
+      "evidenceSha256": "c4d77455b54e5c704a0ff020ea9bd33c3b25e99b5d9203c9a7f7bb1835f113fd",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -339,7 +339,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": ".env file reference (potential secret exposure)",
-      "evidenceSha256": "49e57a184e2477ba629ca3b071e762a7bb95fee6202143c852e36a98c344422e",
+      "evidenceSha256": "2045bf7da45206e41ec8457b5d8601dc7ca87d2d6772da7167d26b15fe9e5c03",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -350,7 +350,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "4ddb8f4de72aed6ac4acbaba507adfe64462c1ec0f047eadde88bfbcd3276f5e",
+      "evidenceSha256": "321bd306df5fa1fecff36895eab53b51561c0d7ecdfc446dd47a9c68799d9cad",
       "rationale": "Reviewed malicious or PII regression fixture."
     },
     {
@@ -361,7 +361,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "edacf6dc7035df86836f59134841c4699ba432d1c33c65ea4b31efe3fd7389ca",
+      "evidenceSha256": "c138c39c215123517bec3c027574700a8af7bc514279ba4a0e7949165da3ad11",
       "rationale": "Reviewed malicious or PII regression fixture."
     },
     {
@@ -372,7 +372,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "f80e268ed8ab2b37fc720d9bec6db0f341212bd24ee10f7b7337f864b5a8d823",
+      "evidenceSha256": "f04fe335f9b08b579b9421069dd866ced3b8637f4a16aa7cba55366182b1d9e5",
       "rationale": "Reviewed malicious or PII regression fixture."
     },
     {
@@ -405,7 +405,7 @@
       "severity": "critical",
       "file": "dist/security.js",
       "message": "File read + send exfiltration chain",
-      "evidenceSha256": "a28275768250aba6a42e680b60f285f9bb39cc4d21dc5069f2c575e54cf05332",
+      "evidenceSha256": "fb0ed03a3126786da6f2a76d896f88a126a45f85b6e2143988f32c9764f9ce7a",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -427,7 +427,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "File read + send exfiltration chain",
-      "evidenceSha256": "7680a79440c2da45a84f9700b60d2af0420ae07b5dfaa27d252a8170b19d2c7f",
+      "evidenceSha256": "f064bb25c2c6c43167c356af2531ad0525b0023cc79476eed8bd8073a71bb596",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -493,7 +493,7 @@
       "severity": "high",
       "file": "dist/security.js",
       "message": "Potential data exfiltration pattern",
-      "evidenceSha256": "f5956ce7a58bb312b54735e5a02b7a827234884ceaad79b828e2077377422ab3",
+      "evidenceSha256": "2ab5a4aa735fa36ee9ab6ae9a8204767b1e3b75a65cf9236e6861885c2ef7d9d",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -515,7 +515,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "Potential data exfiltration pattern",
-      "evidenceSha256": "b382d21be4dd9789c7b809536677d49f6442fbbd444616236390510eda657890",
+      "evidenceSha256": "4ba65b3c4e43bbc6593533ce6ed94fd6ccbbd03b2e69a26560792f4a2424d7e5",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -526,7 +526,7 @@
       "severity": "high",
       "file": "dist/security.js",
       "message": "Setting sensitive environment variable",
-      "evidenceSha256": "02cb04c8b4889f8f46db5181ecab8cb73da9e8bb62d660a89f2e6da17b2b9332",
+      "evidenceSha256": "a274c955e99bc45dd5d9b6a6d2294b58a2cfb762f983c7bac1f32b1cf3f2a59a",
       "rationale": "Reviewed self-reference in a detector definition."
     },
     {
@@ -548,7 +548,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "Setting sensitive environment variable",
-      "evidenceSha256": "b861a9bb05176fa66bd20ddf12852f02f3b149ff01fbf87957d03e0596f3bdc3",
+      "evidenceSha256": "d64c7f2bf3dcbf5104dd04727844279ac4cb25cbbb69568c76c18051c19ad1db",
       "rationale": "Reviewed self-reference in a detector definition."
     }
   ]

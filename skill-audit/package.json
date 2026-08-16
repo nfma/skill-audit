@@ -10,7 +10,7 @@
     "build": "node scripts/clean.cjs && npm run typecheck && tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "format:check": "prettier --check \"../.github/**/*.yml\" \"../.self-audit-baseline.json\" \"src/**/*.ts\" \"scripts/**/*.{cjs,mjs}\" \"package*.json\" \"tsconfig*.json\"",
+    "format:check": "node scripts/check-format.mjs",
     "lint:js": "eslint src scripts --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/index.js --update-db",
