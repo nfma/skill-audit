@@ -3,7 +3,12 @@ import { basename, extname } from "path";
 import { SkillInfo, SkillManifest, Finding, FindingCategory } from "./types.js";
 import { resolveSkillPath, getSkillFiles } from "./discover.js";
 import { isDocumentedSafeLifecycleScript } from "./lifecycle-safety.js";
-import { loadAndCompile, hasPatternsFile, getPatternMetadata, CompiledPattern } from "./patterns.js";
+import {
+  loadAndCompile,
+  hasPatternsFile,
+  getPatternMetadata,
+  CompiledPattern,
+} from "./patterns.js";
 
 /**
  * Phase 1 - Layer 2: Security Auditor
@@ -37,7 +42,7 @@ function initPatterns(): Map<string, CompiledPattern[]> {
   if (compiledPatterns) {
     return compiledPatterns;
   }
-  
+
   try {
     if (hasPatternsFile()) {
       compiledPatterns = loadAndCompile();
@@ -45,9 +50,12 @@ function initPatterns(): Map<string, CompiledPattern[]> {
       return compiledPatterns;
     }
   } catch (error) {
-    console.warn("Failed to load external patterns, using hardcoded fallback:", error);
+    console.warn(
+      "Failed to load external patterns, using hardcoded fallback:",
+      error,
+    );
   }
-  
+
   // Fallback to hardcoded patterns (original implementation)
   compiledPatterns = new Map();
   return compiledPatterns;
@@ -59,24 +67,94 @@ function initPatterns(): Map<string, CompiledPattern[]> {
 
 const PROMPT_INJECTION_PATTERNS = [
   // Critical - Block immediately
-  { pattern: /ignore\s+(all\s+)?previous\s+(instructions?|rules?)/i, id: "PI01", severity: "critical", message: "Instruction override - ignore previous instructions" },
-  { pattern: /you\s+(are\s+)?now\s+(a|an|i am)\s+\w+/i, id: "PI02", severity: "critical", message: "Roleplay bypass - role impersonation" },
-  { pattern: /forget\s+(everything|all|your)/i, id: "PI03", severity: "critical", message: "Context forgetting attempt" },
-  { pattern: /system\s+prompt\s+override/i, id: "PI04", severity: "critical", message: "System prompt override attempt" },
-  { pattern: /act\s+as\s+if\s+(you\s+)?(have|no)\s+(restrictions|limits)/i, id: "PI05", severity: "critical", message: "Restriction removal attempt" },
-  { pattern: /\[SYSTEM\]|\[ADMIN\]|\[ROOT\]/i, id: "PI06", severity: "critical", message: "Fake role tags injection" },
+  {
+    pattern: /ignore\s+(all\s+)?previous\s+(instructions?|rules?)/i,
+    id: "PI01",
+    severity: "critical",
+    message: "Instruction override - ignore previous instructions",
+  },
+  {
+    pattern: /you\s+(are\s+)?now\s+(a|an|i am)\s+\w+/i,
+    id: "PI02",
+    severity: "critical",
+    message: "Roleplay bypass - role impersonation",
+  },
+  {
+    pattern: /forget\s+(everything|all|your)/i,
+    id: "PI03",
+    severity: "critical",
+    message: "Context forgetting attempt",
+  },
+  {
+    pattern: /system\s+prompt\s+override/i,
+    id: "PI04",
+    severity: "critical",
+    message: "System prompt override attempt",
+  },
+  {
+    pattern: /act\s+as\s+if\s+(you\s+)?(have|no)\s+(restrictions|limits)/i,
+    id: "PI05",
+    severity: "critical",
+    message: "Restriction removal attempt",
+  },
+  {
+    pattern: /\[SYSTEM\]|\[ADMIN\]|\[ROOT\]/i,
+    id: "PI06",
+    severity: "critical",
+    message: "Fake role tags injection",
+  },
 
   // High - Flag for review
-  { pattern: /end\s+of\s+system\s+prompt|---END---/i, id: "PI07", severity: "high", message: "Prompt termination marker" },
-  { pattern: /debug\s+mode\s*:\s*enabled|safety\s+mode\s*:\s*off/i, id: "PI08", severity: "high", message: "Safety toggle disable" },
-  { pattern: /<!--[\s\S]*?-->/g, id: "PI09", severity: "high", message: "Hidden instructions in HTML comments" },
-  { pattern: /note\s+to\s+AI:|AI\s+instruction:/i, id: "PI10", severity: "high", message: "AI directive injection" },
+  {
+    pattern: /end\s+of\s+system\s+prompt|---END---/i,
+    id: "PI07",
+    severity: "high",
+    message: "Prompt termination marker",
+  },
+  {
+    pattern: /debug\s+mode\s*:\s*enabled|safety\s+mode\s*:\s*off/i,
+    id: "PI08",
+    severity: "high",
+    message: "Safety toggle disable",
+  },
+  {
+    pattern: /<!--[\s\S]*?-->/g,
+    id: "PI09",
+    severity: "high",
+    message: "Hidden instructions in HTML comments",
+  },
+  {
+    pattern: /note\s+to\s+AI:|AI\s+instruction:/i,
+    id: "PI10",
+    severity: "high",
+    message: "AI directive injection",
+  },
 
   // Medium - Evaluate context
-  { pattern: /(?:you\s+must|you\s+should)\s+(not|never)/i, id: "PI11", severity: "medium", message: "Command to override restrictions" },
-  { pattern: /bypass\s+(restriction|rule|limit|safety)/i, id: "PI12", severity: "medium", message: "Bypass attempt" },
-  { pattern: /disregard\s+(all|your|the)\s+(previous|system)/i, id: "PI13", severity: "medium", message: "Disregard instruction pattern" },
-  { pattern: /i.*am\s+the\s+developer.*trust\s+me/i, id: "PI14", severity: "medium", message: "Social engineering - developer trust exploitation" },
+  {
+    pattern: /(?:you\s+must|you\s+should)\s+(not|never)/i,
+    id: "PI11",
+    severity: "medium",
+    message: "Command to override restrictions",
+  },
+  {
+    pattern: /bypass\s+(restriction|rule|limit|safety)/i,
+    id: "PI12",
+    severity: "medium",
+    message: "Bypass attempt",
+  },
+  {
+    pattern: /disregard\s+(all|your|the)\s+(previous|system)/i,
+    id: "PI13",
+    severity: "medium",
+    message: "Disregard instruction pattern",
+  },
+  {
+    pattern: /i.*am\s+the\s+developer.*trust\s+me/i,
+    id: "PI14",
+    severity: "medium",
+    message: "Social engineering - developer trust exploitation",
+  },
 ];
 
 // ============================================================
@@ -85,17 +163,57 @@ const PROMPT_INJECTION_PATTERNS = [
 
 // Only scan code files for credential patterns
 const CREDENTIAL_PATTERNS_CODE = [
-  { pattern: /~\/\.ssh|\/\.ssh\//, id: "CL01", severity: "critical", message: "SSH credential path reference" },
-  { pattern: /~\/\.aws|\/\.aws\//, id: "CL02", severity: "critical", message: "AWS credential path reference" },
-  { pattern: /~\/\.env|mkdir.*\.env/, id: "CL03", severity: "critical", message: ".env file reference (potential secret exposure)" },
-  { pattern: /curl\s+(?!.*(-fsSL|-f\s|-L)).*\|\s*(sh|bash|perl|python)/, id: "CL04", severity: "critical", message: "Pipe to shell - code execution risk" },
-  { pattern: /wget\s+(?!.*(-q|-O)).*\|\s*(sh|bash)/, id: "CL05", severity: "critical", message: "Pipe to shell - code execution risk" },
-  { pattern: /nc\s+-[elv]\s+|netcat\s+-[elv]/, id: "CL06", severity: "critical", message: "Netcat reverse shell pattern" },
-  { pattern: /bash\s+-i\s+.*\&\s*\/dev\/tcp/, id: "CL07", severity: "critical", message: "Bash reverse shell pattern" },
+  {
+    pattern: /~\/\.ssh|\/\.ssh\//,
+    id: "CL01",
+    severity: "critical",
+    message: "SSH credential path reference",
+  },
+  {
+    pattern: /~\/\.aws|\/\.aws\//,
+    id: "CL02",
+    severity: "critical",
+    message: "AWS credential path reference",
+  },
+  {
+    pattern: /~\/\.env|mkdir.*\.env/,
+    id: "CL03",
+    severity: "critical",
+    message: ".env file reference (potential secret exposure)",
+  },
+  {
+    pattern: /curl\s+(?!.*(-fsSL|-f\s|-L)).*\|\s*(sh|bash|perl|python)/,
+    id: "CL04",
+    severity: "critical",
+    message: "Pipe to shell - code execution risk",
+  },
+  {
+    pattern: /wget\s+(?!.*(-q|-O)).*\|\s*(sh|bash)/,
+    id: "CL05",
+    severity: "critical",
+    message: "Pipe to shell - code execution risk",
+  },
+  {
+    pattern: /nc\s+-[elv]\s+|netcat\s+-[elv]/,
+    id: "CL06",
+    severity: "critical",
+    message: "Netcat reverse shell pattern",
+  },
+  {
+    pattern: /bash\s+-i\s+.*\&\s*\/dev\/tcp/,
+    id: "CL07",
+    severity: "critical",
+    message: "Bash reverse shell pattern",
+  },
 ];
 
 const CREDENTIAL_PATTERNS_MD = [
-  { pattern: /bash\s+-i\s+.*\&\s*\/dev\/tcp/, id: "CL07", severity: "critical", message: "Bash reverse shell pattern" },
+  {
+    pattern: /bash\s+-i\s+.*\&\s*\/dev\/tcp/,
+    id: "CL07",
+    severity: "critical",
+    message: "Bash reverse shell pattern",
+  },
 ];
 
 // ============================================================
@@ -103,12 +221,42 @@ const CREDENTIAL_PATTERNS_MD = [
 // ============================================================
 
 const EXFILTRATION_PATTERNS = [
-  { pattern: /https?:\/\/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/, id: "EX01", severity: "critical", message: "Raw IP address in URL - potential exfiltration" },
-  { pattern: /fetch\s*\(\s*["'`][^"']+\?(key|token|secret|password)/i, id: "EX03", severity: "critical", message: "API key in URL query string - exfiltration risk" },
-  { pattern: /\.send\(.*(http|https|external)/i, id: "EX04", severity: "critical", message: "Data send to external server" },
-  { pattern: /dns\.resolve|dns\.query|new\s+DNS/i, id: "EX05", severity: "critical", message: "DNS resolution - potential DNS tunneling" },
-  { pattern: /new\s+WebSocket\s*\(\s*["'`][^'"`]+["'`]\s*\)/, id: "EX06", severity: "high", message: "WebSocket connection - check target" },
-  { pattern: /readFile.*send|fetch.*readFile|read_file.*fetch/i, id: "EX07", severity: "critical", message: "File read + send exfiltration chain" },
+  {
+    pattern: /https?:\/\/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/,
+    id: "EX01",
+    severity: "critical",
+    message: "Raw IP address in URL - potential exfiltration",
+  },
+  {
+    pattern: /fetch\s*\(\s*["'`][^"']+\?(key|token|secret|password)/i,
+    id: "EX03",
+    severity: "critical",
+    message: "API key in URL query string - exfiltration risk",
+  },
+  {
+    pattern: /\.send\(.*(http|https|external)/i,
+    id: "EX04",
+    severity: "critical",
+    message: "Data send to external server",
+  },
+  {
+    pattern: /dns\.resolve|dns\.query|new\s+DNS/i,
+    id: "EX05",
+    severity: "critical",
+    message: "DNS resolution - potential DNS tunneling",
+  },
+  {
+    pattern: /new\s+WebSocket\s*\(\s*["'`][^'"`]+["'`]\s*\)/,
+    id: "EX06",
+    severity: "high",
+    message: "WebSocket connection - check target",
+  },
+  {
+    pattern: /readFile.*send|fetch.*readFile|read_file.*fetch/i,
+    id: "EX07",
+    severity: "critical",
+    message: "File read + send exfiltration chain",
+  },
 ];
 
 // ============================================================
@@ -118,27 +266,90 @@ const EXFILTRATION_PATTERNS = [
 
 const PII_EXFILTRATION_PATTERNS = [
   // PII in URLs
-  { pattern: /fetch\s*\([^)]*(ssn|cccd|cmnd|passport|email|phone|address)/i, id: "PEX01", severity: "critical", message: "PII detected in fetch URL - exfiltration risk" },
-  { pattern: /https?:\/\/[^"'\s]*[?&](ssn|cccd|email|phone|passport|tax_id|credit_card)=/i, id: "PEX02", severity: "critical", message: "PII in URL query parameter - exfiltration risk" },
-  
+  {
+    pattern: /fetch\s*\([^)]*(ssn|cccd|cmnd|passport|email|phone|address)/i,
+    id: "PEX01",
+    severity: "critical",
+    message: "PII detected in fetch URL - exfiltration risk",
+  },
+  {
+    pattern:
+      /https?:\/\/[^"'\s]*[?&](ssn|cccd|email|phone|passport|tax_id|credit_card)=/i,
+    id: "PEX02",
+    severity: "critical",
+    message: "PII in URL query parameter - exfiltration risk",
+  },
+
   // PII in form data / request body
-  { pattern: /FormData.*\.(append|set)\s*\([^)]*(email|phone|ssn|cccd|passport|credit_card)/i, id: "PEX03", severity: "critical", message: "PII in FormData - potential exfiltration" },
-  { pattern: /body\s*:\s*JSON\.stringify\s*\([^)]*(email|phone|ssn|cccd|passport|credit_card)/i, id: "PEX04", severity: "critical", message: "PII in JSON body - potential exfiltration" },
-  
+  {
+    pattern:
+      /FormData.*\.(append|set)\s*\([^)]*(email|phone|ssn|cccd|passport|credit_card)/i,
+    id: "PEX03",
+    severity: "critical",
+    message: "PII in FormData - potential exfiltration",
+  },
+  {
+    pattern:
+      /body\s*:\s*JSON\.stringify\s*\([^)]*(email|phone|ssn|cccd|passport|credit_card)/i,
+    id: "PEX04",
+    severity: "critical",
+    message: "PII in JSON body - potential exfiltration",
+  },
+
   // PII in API calls
-  { pattern: /api\s*\.\s*(post|put|send)\s*\([^)]*(email|phone|ssn|cccd|passport)/i, id: "PEX05", severity: "high", message: "PII in API call - verify destination" },
-  { pattern: /axios\s*\.\s*(post|put)\s*\([^)]*(email|phone|ssn|cccd|passport)/i, id: "PEX06", severity: "high", message: "PII in axios request - verify destination" },
-  
+  {
+    pattern:
+      /api\s*\.\s*(post|put|send)\s*\([^)]*(email|phone|ssn|cccd|passport)/i,
+    id: "PEX05",
+    severity: "high",
+    message: "PII in API call - verify destination",
+  },
+  {
+    pattern:
+      /axios\s*\.\s*(post|put)\s*\([^)]*(email|phone|ssn|cccd|passport)/i,
+    id: "PEX06",
+    severity: "high",
+    message: "PII in axios request - verify destination",
+  },
+
   // PII in logging
-  { pattern: /console\.(log|info|debug|warn)\s*\([^)]*(email|phone|ssn|cccd|password|token)/i, id: "PEX07", severity: "high", message: "PII in console log - data leak risk" },
-  { pattern: /logger\.(info|debug|warn|error)\s*\([^)]*(email|phone|ssn|cccd|password)/i, id: "PEX08", severity: "high", message: "PII in logger output - data leak risk" },
-  
+  {
+    pattern:
+      /console\.(log|info|debug|warn)\s*\([^)]*(email|phone|ssn|cccd|password|token)/i,
+    id: "PEX07",
+    severity: "high",
+    message: "PII in console log - data leak risk",
+  },
+  {
+    pattern:
+      /logger\.(info|debug|warn|error)\s*\([^)]*(email|phone|ssn|cccd|password)/i,
+    id: "PEX08",
+    severity: "high",
+    message: "PII in logger output - data leak risk",
+  },
+
   // PII in file writes (potential data staging)
-  { pattern: /writeFile.*email|writeFile.*phone|writeFile.*ssn|writeFile.*cccd/i, id: "PEX09", severity: "high", message: "PII written to file - potential data staging" },
-  
+  {
+    pattern:
+      /writeFile.*email|writeFile.*phone|writeFile.*ssn|writeFile.*cccd/i,
+    id: "PEX09",
+    severity: "high",
+    message: "PII written to file - potential data staging",
+  },
+
   // Vietnamese PII specific
-  { pattern: /send.*căn cước|gửi.*căn cước|upload.*căn cước/i, id: "PEX10", severity: "critical", message: "Vietnam CCCD exfiltration pattern" },
-  { pattern: /send.*mã số thuế|gửi.*mã số thuế|upload.*mã số thuế/i, id: "PEX11", severity: "critical", message: "Vietnam Tax ID exfiltration pattern" },
+  {
+    pattern: /send.*căn cước|gửi.*căn cước|upload.*căn cước/i,
+    id: "PEX10",
+    severity: "critical",
+    message: "Vietnam CCCD exfiltration pattern",
+  },
+  {
+    pattern: /send.*mã số thuế|gửi.*mã số thuế|upload.*mã số thuế/i,
+    id: "PEX11",
+    severity: "critical",
+    message: "Vietnam Tax ID exfiltration pattern",
+  },
 ];
 
 // ============================================================
@@ -146,15 +357,62 @@ const PII_EXFILTRATION_PATTERNS = [
 // ============================================================
 
 const DANGEROUS_PATTERNS = [
-  { pattern: /rm\s+-rf\s+\/\s*$/, id: "CE01", severity: "critical", message: "Destructive rm -rf / command (root)" },
-  { pattern: /rm\s+-rf\s+\$HOME|rm\s+-rf\s+~\s*$|rm\s+-rf\s+\/home\s*$|rm\s+-rf\s+\/tmp\s*$/, id: "CE02", severity: "high", message: "Recursive delete in user directory" },
-  { pattern: /exec\s+\$\(/, id: "CE03", severity: "high", message: "Dynamic command execution" },
-  { pattern: /eval\s+\$/, id: "CE04", severity: "high", message: "Eval with variable interpolation" },
-  { pattern: /subprocess.*shell\s*=\s*true/i, id: "CE05", severity: "medium", message: "Subprocess with shell=True" },
-  { pattern: /os\.system\s*\(/, id: "CE06", severity: "high", message: "os.system() call - shell injection risk" },
-  { pattern: /child_process.*exec\s*\(/, id: "CE07", severity: "medium", message: "child_process.exec - verify input sanitization" },
-  { pattern: /chmod\s+[47]777/, id: "CE08", severity: "high", message: "World-writable permissions" },
-  { pattern: /process\.fork\s*\(|child_process\.spawn\s*\(|subprocess\.spawn\s*\(/i, id: "CE09", severity: "high", message: "Process fork/spawn - potential crypto miner" },
+  {
+    pattern: /rm\s+-rf\s+\/\s*$/,
+    id: "CE01",
+    severity: "critical",
+    message: "Destructive rm -rf / command (root)",
+  },
+  {
+    pattern:
+      /rm\s+-rf\s+\$HOME|rm\s+-rf\s+~\s*$|rm\s+-rf\s+\/home\s*$|rm\s+-rf\s+\/tmp\s*$/,
+    id: "CE02",
+    severity: "high",
+    message: "Recursive delete in user directory",
+  },
+  {
+    pattern: /exec\s+\$\(/,
+    id: "CE03",
+    severity: "high",
+    message: "Dynamic command execution",
+  },
+  {
+    pattern: /eval\s+\$/,
+    id: "CE04",
+    severity: "high",
+    message: "Eval with variable interpolation",
+  },
+  {
+    pattern: /subprocess.*shell\s*=\s*true/i,
+    id: "CE05",
+    severity: "medium",
+    message: "Subprocess with shell=True",
+  },
+  {
+    pattern: /os\.system\s*\(/,
+    id: "CE06",
+    severity: "high",
+    message: "os.system() call - shell injection risk",
+  },
+  {
+    pattern: /child_process.*exec\s*\(/,
+    id: "CE07",
+    severity: "medium",
+    message: "child_process.exec - verify input sanitization",
+  },
+  {
+    pattern: /chmod\s+[47]777/,
+    id: "CE08",
+    severity: "high",
+    message: "World-writable permissions",
+  },
+  {
+    pattern:
+      /process\.fork\s*\(|child_process\.spawn\s*\(|subprocess\.spawn\s*\(/i,
+    id: "CE09",
+    severity: "high",
+    message: "Process fork/spawn - potential crypto miner",
+  },
 ];
 
 // ============================================================
@@ -162,11 +420,36 @@ const DANGEROUS_PATTERNS = [
 // ============================================================
 
 const SECRET_PATTERNS = [
-  { pattern: /sk-[a-zA-Z0-9]{20,}/, id: "SC01", severity: "critical", message: "OpenAI API key pattern" },
-  { pattern: /github_pat_[a-zA-Z0-9_]{20,}/, id: "SC02", severity: "critical", message: "GitHub PAT pattern" },
-  { pattern: /ghp_[a-zA-Z0-9]{36}/, id: "SC03", severity: "critical", message: "GitHub OAuth token pattern" },
-  { pattern: /xox[baprs]-[a-zA-Z0-9]{10,}/, id: "SC04", severity: "critical", message: "Slack token pattern" },
-  { pattern: /AKIA[0-9A-Z]{16}/, id: "SC05", severity: "critical", message: "AWS access key pattern" },
+  {
+    pattern: /sk-[a-zA-Z0-9]{20,}/,
+    id: "SC01",
+    severity: "critical",
+    message: "OpenAI API key pattern",
+  },
+  {
+    pattern: /github_pat_[a-zA-Z0-9_]{20,}/,
+    id: "SC02",
+    severity: "critical",
+    message: "GitHub PAT pattern",
+  },
+  {
+    pattern: /ghp_[a-zA-Z0-9]{36}/,
+    id: "SC03",
+    severity: "critical",
+    message: "GitHub OAuth token pattern",
+  },
+  {
+    pattern: /xox[baprs]-[a-zA-Z0-9]{10,}/,
+    id: "SC04",
+    severity: "critical",
+    message: "Slack token pattern",
+  },
+  {
+    pattern: /AKIA[0-9A-Z]{16}/,
+    id: "SC05",
+    severity: "critical",
+    message: "AWS access key pattern",
+  },
 ];
 
 // ============================================================
@@ -174,10 +457,30 @@ const SECRET_PATTERNS = [
 // ============================================================
 
 const TOOL_MISUSE_PATTERNS = [
-  { pattern: /upload.*(file|data).*(external|remote|server)/i, id: "TM01", severity: "high", message: "Potential data exfiltration pattern" },
-  { pattern: /export\s+(API|TOKEN|KEY|SECRET|PASSWORD|CREENTIAL)/i, id: "TM02", severity: "high", message: "Exporting sensitive environment variable" },
-  { pattern: /setenv.*(PASSWORD|TOKEN|KEY|SECRET|CREDS)/i, id: "TM03", severity: "high", message: "Setting sensitive environment variable" },
-  { pattern: /process\.env\[.*(KEY|SECRET|TOKEN|PASSWORD)/i, id: "TM04", severity: "medium", message: "Accessing sensitive env vars" },
+  {
+    pattern: /upload.*(file|data).*(external|remote|server)/i,
+    id: "TM01",
+    severity: "high",
+    message: "Potential data exfiltration pattern",
+  },
+  {
+    pattern: /export\s+(API|TOKEN|KEY|SECRET|PASSWORD|CREENTIAL)/i,
+    id: "TM02",
+    severity: "high",
+    message: "Exporting sensitive environment variable",
+  },
+  {
+    pattern: /setenv.*(PASSWORD|TOKEN|KEY|SECRET|CREDS)/i,
+    id: "TM03",
+    severity: "high",
+    message: "Setting sensitive environment variable",
+  },
+  {
+    pattern: /process\.env\[.*(KEY|SECRET|TOKEN|PASSWORD)/i,
+    id: "TM04",
+    severity: "medium",
+    message: "Accessing sensitive env vars",
+  },
 ];
 
 // ============================================================
@@ -185,11 +488,37 @@ const TOOL_MISUSE_PATTERNS = [
 // ============================================================
 
 const BEHAVIORAL_PATTERNS = [
-  { pattern: /^(always|never)\s+(say|do|follow|use|assume|accept|must|should)/im, id: "BM01", severity: "medium", message: "Absolute command pattern - may override safety" },
-  { pattern: /^(never|always)\s+(question|verify|check|ask)/im, id: "BM02", severity: "medium", message: "Verification suppression" },
-  { pattern: /^trust\s+(me|this| blindly)/im, id: "BM03", severity: "medium", message: "Blind trust request" },
-  { pattern: /^don.*t\s+(need|require).*(permission|approval|confirm)/im, id: "BM04", severity: "medium", message: "Permission bypass encouragement" },
-  { pattern: /^keep.*(this|secret|hidden).*(from|between)/im, id: "BM05", severity: "medium", message: "Secret keeping instruction" },
+  {
+    pattern:
+      /^(always|never)\s+(say|do|follow|use|assume|accept|must|should)/im,
+    id: "BM01",
+    severity: "medium",
+    message: "Absolute command pattern - may override safety",
+  },
+  {
+    pattern: /^(never|always)\s+(question|verify|check|ask)/im,
+    id: "BM02",
+    severity: "medium",
+    message: "Verification suppression",
+  },
+  {
+    pattern: /^trust\s+(me|this| blindly)/im,
+    id: "BM03",
+    severity: "medium",
+    message: "Blind trust request",
+  },
+  {
+    pattern: /^don.*t\s+(need|require).*(permission|approval|confirm)/im,
+    id: "BM04",
+    severity: "medium",
+    message: "Permission bypass encouragement",
+  },
+  {
+    pattern: /^keep.*(this|secret|hidden).*(from|between)/im,
+    id: "BM05",
+    severity: "medium",
+    message: "Secret keeping instruction",
+  },
 ];
 
 // ============================================================
@@ -197,36 +526,82 @@ const BEHAVIORAL_PATTERNS = [
 // ============================================================
 
 const TRUSTED_DOMAINS = [
-  'github.com',
-  'raw.githubusercontent.com',
-  'vercel.com',
-  'www.github.com'
+  "github.com",
+  "raw.githubusercontent.com",
+  "vercel.com",
+  "www.github.com",
 ];
 
-const TRUSTED_PROTOCOLS = ['https:', 'git:'];
+const TRUSTED_PROTOCOLS = ["https:", "git:"];
 
 // ============================================================
 // Helper Functions
 // ============================================================
 
 const CODE_EXTENSIONS = new Set([
-  ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
-  ".py", ".pyw", ".js", ".cjs", ".mjs", ".jsx", ".ts", ".cts", ".mts", ".tsx",
-  ".rb", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp", ".cs", ".php", ".lua", ".pl",
-  ".sql", ".yaml", ".yml", ".json", ".jsonc", ".toml", ".ini", ".cfg", ".conf", ".xml"
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
+  ".ps1",
+  ".bat",
+  ".cmd",
+  ".py",
+  ".pyw",
+  ".js",
+  ".cjs",
+  ".mjs",
+  ".jsx",
+  ".ts",
+  ".cts",
+  ".mts",
+  ".tsx",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".c",
+  ".h",
+  ".cpp",
+  ".hpp",
+  ".cs",
+  ".php",
+  ".lua",
+  ".pl",
+  ".sql",
+  ".yaml",
+  ".yml",
+  ".json",
+  ".jsonc",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf",
+  ".xml",
 ]);
 
 const CODE_FILENAMES = new Set([
-  "dockerfile", "containerfile", "makefile", "justfile", "procfile", ".cursorrules"
+  "dockerfile",
+  "containerfile",
+  "makefile",
+  "justfile",
+  "procfile",
+  ".cursorrules",
 ]);
 
 const INSTRUCTION_FILENAMES = new Set([
-  "skill.md", "agents.md", "claude.md", "gemini.md"
+  "skill.md",
+  "agents.md",
+  "claude.md",
+  "gemini.md",
 ]);
 
 function isCodeFile(filename: string): boolean {
   const normalizedName = basename(filename).toLowerCase();
-  return CODE_EXTENSIONS.has(extname(normalizedName)) || CODE_FILENAMES.has(normalizedName);
+  return (
+    CODE_EXTENSIONS.has(extname(normalizedName)) ||
+    CODE_FILENAMES.has(normalizedName)
+  );
 }
 
 function isInstructionFile(filename: string): boolean {
@@ -273,13 +648,23 @@ interface PatternDef {
 }
 
 function normalizeSeverity(severity: string | undefined): Finding["severity"] {
-  if (severity === "critical" || severity === "high" || severity === "medium" || severity === "low" || severity === "info") {
+  if (
+    severity === "critical" ||
+    severity === "high" ||
+    severity === "medium" ||
+    severity === "low" ||
+    severity === "info"
+  ) {
     return severity;
   }
   return "medium";
 }
 
-function scanContent(content: string, file: string, patterns: PatternDef[] | CompiledPattern[]): Finding[] {
+function scanContent(
+  content: string,
+  file: string,
+  patterns: PatternDef[] | CompiledPattern[],
+): Finding[] {
   const findings: Finding[] = [];
   const lines = content.split("\n");
 
@@ -289,7 +674,9 @@ function scanContent(content: string, file: string, patterns: PatternDef[] | Com
     const id = patternDef.id;
     const severity = normalizeSeverity(patternDef.severity);
     const message = patternDef.message;
-    const category = isCompiledPattern ? patternDef.category : getCategoryFromId(id);
+    const category = isCompiledPattern
+      ? patternDef.category
+      : getCategoryFromId(id);
     const asi = isCompiledPattern ? patternDef.asi : getAsiFromId(id);
 
     for (let i = 0; i < lines.length; i++) {
@@ -302,7 +689,7 @@ function scanContent(content: string, file: string, patterns: PatternDef[] | Com
           file,
           line: i + 1,
           message,
-          evidence: lines[i].substring(0, 100)
+          evidence: lines[i].substring(0, 100),
         });
       }
     }
@@ -317,10 +704,18 @@ function scanCodeBlocksInMarkdown(content: string, file: string): Finding[] {
 
   while ((match = codeBlockRegex.exec(content)) !== null) {
     const code = match[2];
-    findings.push(...scanContent(code, file + " (code block)", CREDENTIAL_PATTERNS_CODE));
-    findings.push(...scanContent(code, file + " (code block)", EXFILTRATION_PATTERNS));
-    findings.push(...scanContent(code, file + " (code block)", DANGEROUS_PATTERNS));
-    findings.push(...scanContent(code, file + " (code block)", SECRET_PATTERNS));
+    findings.push(
+      ...scanContent(code, file + " (code block)", CREDENTIAL_PATTERNS_CODE),
+    );
+    findings.push(
+      ...scanContent(code, file + " (code block)", EXFILTRATION_PATTERNS),
+    );
+    findings.push(
+      ...scanContent(code, file + " (code block)", DANGEROUS_PATTERNS),
+    );
+    findings.push(
+      ...scanContent(code, file + " (code block)", SECRET_PATTERNS),
+    );
   }
 
   return findings;
@@ -341,7 +736,7 @@ function checkProvenance(origin: string, skillPath: string): Finding[] {
         severity: "medium",
         file: skillPath,
         message: "Origin is not a URL - cannot verify provenance",
-        evidence: origin
+        evidence: origin,
       });
       return findings;
     }
@@ -354,12 +749,14 @@ function checkProvenance(origin: string, skillPath: string): Finding[] {
         severity: "critical",
         file: skillPath,
         message: "Untrusted protocol - only https and git allowed",
-        evidence: origin
+        evidence: origin,
       });
     }
 
     const hostname = url.hostname.toLowerCase();
-    const isTrusted = TRUSTED_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+    const isTrusted = TRUSTED_DOMAINS.some(
+      (d) => hostname === d || hostname.endsWith("." + d),
+    );
 
     if (!isTrusted) {
       findings.push({
@@ -369,12 +766,12 @@ function checkProvenance(origin: string, skillPath: string): Finding[] {
         severity: "high",
         file: skillPath,
         message: "Origin domain is not in trusted list",
-        evidence: origin
+        evidence: origin,
       });
     }
 
     const isPinned = /[a-f0-9]{7,40}|v\d+\.\d+|release/.test(origin);
-    if (!isPinned && url.pathname.includes('/blob/')) {
+    if (!isPinned && url.pathname.includes("/blob/")) {
       findings.push({
         id: "PROV-04",
         category: "PROV",
@@ -382,7 +779,7 @@ function checkProvenance(origin: string, skillPath: string): Finding[] {
         severity: "medium",
         file: skillPath,
         message: "Origin does not use pinned ref (commit SHA or tag)",
-        evidence: origin
+        evidence: origin,
       });
     }
   } catch (e) {
@@ -393,7 +790,7 @@ function checkProvenance(origin: string, skillPath: string): Finding[] {
       severity: "low",
       file: skillPath,
       message: "Provenance check failed",
-      evidence: String(e).slice(0, 100)
+      evidence: String(e).slice(0, 100),
     });
   }
 
@@ -409,22 +806,27 @@ export interface SecurityAuditResult {
   unreadableFiles: string[];
 }
 
-export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): SecurityAuditResult {
+export function auditSecurity(
+  skill: SkillInfo,
+  manifest?: SkillManifest,
+): SecurityAuditResult {
   let resolvedPath: string;
   try {
     resolvedPath = resolveSkillPath(skill.path);
   } catch (e) {
     return {
-      findings: [{
-        id: "SCAN-ERR-01",
-        category: "SC",
-        asi: "ASI04",
-        severity: "medium",
-        file: skill.path,
-        message: "Could not resolve skill path",
-        evidence: String(e)
-      }],
-      unreadableFiles: []
+      findings: [
+        {
+          id: "SCAN-ERR-01",
+          category: "SC",
+          asi: "ASI04",
+          severity: "medium",
+          file: skill.path,
+          message: "Could not resolve skill path",
+          evidence: String(e),
+        },
+      ],
+      unreadableFiles: [],
     };
   }
 
@@ -452,7 +854,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const exPatterns = patterns.get("exfiltration") || [];
           const bmPatterns = patterns.get("behavioral") || [];
           const cePatterns = patterns.get("shellInjection") || [];
-          const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const piiPatterns = patterns.get("pii") || []; // NEW: PII patterns
           const sqlPatterns = patterns.get("sqlInjection") || [];
           const pathPatterns = patterns.get("pathTraversal") || [];
 
@@ -461,11 +863,13 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, exPatterns));
           findings.push(...scanContent(content, file, bmPatterns));
           findings.push(...scanContent(content, file, cePatterns));
-          findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, piiPatterns)); // NEW
           findings.push(...scanContent(content, file, sqlPatterns));
           findings.push(...scanContent(content, file, pathPatterns));
         } else {
-          findings.push(...scanContent(content, file, PROMPT_INJECTION_PATTERNS));
+          findings.push(
+            ...scanContent(content, file, PROMPT_INJECTION_PATTERNS),
+          );
           findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_MD));
           findings.push(...scanContent(content, file, EXFILTRATION_PATTERNS));
           findings.push(...scanContent(content, file, BEHAVIORAL_PATTERNS));
@@ -481,7 +885,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           const cePatterns = patterns.get("shellInjection") || [];
           const scPatterns = patterns.get("secrets") || [];
           const tmPatterns = patterns.get("toolMisuse") || [];
-          const piiPatterns = patterns.get("pii") || [];  // NEW: PII patterns
+          const piiPatterns = patterns.get("pii") || []; // NEW: PII patterns
           const sqlPatterns = patterns.get("sqlInjection") || [];
           const pathPatterns = patterns.get("pathTraversal") || [];
 
@@ -490,11 +894,13 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
           findings.push(...scanContent(content, file, cePatterns));
           findings.push(...scanContent(content, file, scPatterns));
           findings.push(...scanContent(content, file, tmPatterns));
-          findings.push(...scanContent(content, file, piiPatterns));  // NEW
+          findings.push(...scanContent(content, file, piiPatterns)); // NEW
           findings.push(...scanContent(content, file, sqlPatterns));
           findings.push(...scanContent(content, file, pathPatterns));
         } else {
-          findings.push(...scanContent(content, file, CREDENTIAL_PATTERNS_CODE));
+          findings.push(
+            ...scanContent(content, file, CREDENTIAL_PATTERNS_CODE),
+          );
           findings.push(...scanContent(content, file, EXFILTRATION_PATTERNS));
           findings.push(...scanContent(content, file, DANGEROUS_PATTERNS));
           findings.push(...scanContent(content, file, SECRET_PATTERNS));
@@ -519,7 +925,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
       severity: "medium",
       file: resolvedPath,
       message: `Could not read ${unreadableFiles.length} file(s) - security scan incomplete`,
-      evidence: unreadableFiles.join(", ")
+      evidence: unreadableFiles.join(", "),
     });
   }
 
@@ -531,7 +937,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
       severity: "medium",
       file: resolvedPath,
       message: "No files found in skill directory",
-      evidence: resolvedPath
+      evidence: resolvedPath,
     });
   }
 
@@ -545,12 +951,17 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
   }
 
   // Filter out findings from known-safe scripts (e.g., postinstall informational scripts)
-  const filteredFindings = findings.filter(f => {
+  const filteredFindings = findings.filter((f) => {
     if (!isKnownSafeScript(f.file, fileContents.get(f.file) || "")) {
       return true;
     }
 
-    return !(f.id.startsWith("CE") || f.id.startsWith("EX") || f.id.startsWith("SC") || f.id.startsWith("TM"));
+    return !(
+      f.id.startsWith("CE") ||
+      f.id.startsWith("EX") ||
+      f.id.startsWith("SC") ||
+      f.id.startsWith("TM")
+    );
   });
 
   return { findings: filteredFindings, unreadableFiles };
@@ -560,35 +971,43 @@ const PORTABLE_CONTEXT_KEYS = {
   reads: "skill-audit-context-reads",
   requires: "skill-audit-context-requires",
   writes: "skill-audit-context-writes",
-  confirmation: "skill-audit-confirmation"
+  confirmation: "skill-audit-confirmation",
 } as const;
 
-function validateContextContract(manifest: SkillManifest, resolvedPath: string): Finding[] {
+function validateContextContract(
+  manifest: SkillManifest,
+  resolvedPath: string,
+): Finding[] {
   const skillFile = `${resolvedPath}/SKILL.md`;
   const contract = resolveContextContract(manifest);
   if (!contract) {
-    return [{
-      id: "CTX-001",
-      category: "ENV",
-      asi: "ASI05",
-      severity: "medium",
-      file: skillFile,
-      message: "Skill does not declare a session context contract",
-      recommendation: "Add namespaced metadata keys for skill-audit-context-reads, skill-audit-context-requires, skill-audit-context-writes, and skill-audit-confirmation."
-    }];
+    return [
+      {
+        id: "CTX-001",
+        category: "ENV",
+        asi: "ASI05",
+        severity: "medium",
+        file: skillFile,
+        message: "Skill does not declare a session context contract",
+        recommendation:
+          "Add namespaced metadata keys for skill-audit-context-reads, skill-audit-context-requires, skill-audit-context-writes, and skill-audit-confirmation.",
+      },
+    ];
   }
 
   const findings: Finding[] = [];
   const legacyContext = manifest.context;
   const metadata = manifest.metadata;
   if (
-    legacyContext
-    && typeof legacyContext === "object"
-    && !Array.isArray(legacyContext)
-    && metadata
-    && typeof metadata === "object"
-    && !Array.isArray(metadata)
-    && Object.values(PORTABLE_CONTEXT_KEYS).some(key => Object.hasOwn(metadata, key))
+    legacyContext &&
+    typeof legacyContext === "object" &&
+    !Array.isArray(legacyContext) &&
+    metadata &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    Object.values(PORTABLE_CONTEXT_KEYS).some((key) =>
+      Object.hasOwn(metadata, key),
+    )
   ) {
     findings.push({
       id: "CTX-007",
@@ -596,8 +1015,10 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       asi: "ASI04",
       severity: "medium",
       file: skillFile,
-      message: "Context contract declares both legacy context and portable metadata",
-      recommendation: "Remove the legacy context mapping when adding portable skill-audit context metadata."
+      message:
+        "Context contract declares both legacy context and portable metadata",
+      recommendation:
+        "Remove the legacy context mapping when adding portable skill-audit context metadata.",
     });
   }
   if (!Array.isArray(contract.reads)) {
@@ -607,8 +1028,10 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       asi: "ASI01",
       severity: "low",
       file: skillFile,
-      message: "Context contract does not declare what session facts the skill reads",
-      recommendation: "Declare metadata.skill-audit-context-reads with narrow fields such as user_goal, target_environment, or changed_files."
+      message:
+        "Context contract does not declare what session facts the skill reads",
+      recommendation:
+        "Declare metadata.skill-audit-context-reads with narrow fields such as user_goal, target_environment, or changed_files.",
     });
   }
   if (!Array.isArray(contract.requires)) {
@@ -619,7 +1042,8 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       severity: "medium",
       file: skillFile,
       message: "Context contract does not declare invocation preconditions",
-      recommendation: "Declare metadata.skill-audit-context-requires for required user intent, approvals, clean worktree, or verification status."
+      recommendation:
+        "Declare metadata.skill-audit-context-requires for required user intent, approvals, clean worktree, or verification status.",
     });
   }
   if (!Array.isArray(contract.writes)) {
@@ -629,8 +1053,10 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       asi: "ASI05",
       severity: "low",
       file: skillFile,
-      message: "Context contract does not declare what should be remembered after execution",
-      recommendation: "Declare metadata.skill-audit-context-writes with compact summary fields such as commands_run, files_changed, and verification_result."
+      message:
+        "Context contract does not declare what should be remembered after execution",
+      recommendation:
+        "Declare metadata.skill-audit-context-writes with compact summary fields such as commands_run, files_changed, and verification_result.",
     });
   }
   if (!contract.confirmation) {
@@ -641,12 +1067,17 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       severity: "medium",
       file: skillFile,
       message: "Context contract does not declare a confirmation boundary",
-      recommendation: "Declare metadata.skill-audit-confirmation as never, on-risk, or always for shell/tool execution."
+      recommendation:
+        "Declare metadata.skill-audit-confirmation as never, on-risk, or always for shell/tool execution.",
     });
   }
 
   const reads = Array.isArray(contract.reads) ? contract.reads.map(String) : [];
-  if (reads.some(read => /full[_ -]?conversation|all[_ -]?context|all[_ -]?files/i.test(read))) {
+  if (
+    reads.some((read) =>
+      /full[_ -]?conversation|all[_ -]?context|all[_ -]?files/i.test(read),
+    )
+  ) {
     findings.push({
       id: "CTX-006",
       category: "ENV",
@@ -654,7 +1085,8 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
       severity: "medium",
       file: skillFile,
       message: "Context contract asks for overbroad session context",
-      recommendation: "Replace broad context reads with minimum necessary fields."
+      recommendation:
+        "Replace broad context reads with minimum necessary fields.",
     });
   }
 
@@ -662,18 +1094,18 @@ function validateContextContract(manifest: SkillManifest, resolvedPath: string):
 }
 
 function resolveContextContract(
-  manifest: SkillManifest
+  manifest: SkillManifest,
 ): Record<string, unknown> | undefined {
   const legacyContext = manifest.context;
   if (
-    legacyContext
-    && typeof legacyContext === "object"
-    && !Array.isArray(legacyContext)
+    legacyContext &&
+    typeof legacyContext === "object" &&
+    !Array.isArray(legacyContext)
   ) {
     const contract = legacyContext as Record<string, unknown>;
     return {
       ...contract,
-      confirmation: parseMetadataString(contract.confirmation)
+      confirmation: parseMetadataString(contract.confirmation),
     };
   }
 
@@ -682,7 +1114,11 @@ function resolveContextContract(
     return undefined;
   }
 
-  if (!Object.values(PORTABLE_CONTEXT_KEYS).some(key => Object.hasOwn(metadata, key))) {
+  if (
+    !Object.values(PORTABLE_CONTEXT_KEYS).some((key) =>
+      Object.hasOwn(metadata, key),
+    )
+  ) {
     return undefined;
   }
 
@@ -690,7 +1126,9 @@ function resolveContextContract(
     reads: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.reads]),
     requires: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.requires]),
     writes: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.writes]),
-    confirmation: parseMetadataString(metadata[PORTABLE_CONTEXT_KEYS.confirmation])
+    confirmation: parseMetadataString(
+      metadata[PORTABLE_CONTEXT_KEYS.confirmation],
+    ),
   };
 }
 
@@ -698,7 +1136,7 @@ export function parseMetadataList(value: unknown): string[] | undefined {
   if (typeof value !== "string") return undefined;
   const items = value
     .split(",")
-    .map(item => item.trim())
+    .map((item) => item.trim())
     .filter(Boolean);
   return items.length > 0 ? items : undefined;
 }
