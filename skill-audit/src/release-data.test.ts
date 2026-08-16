@@ -98,6 +98,58 @@ describe("canonical rule identity", () => {
       decodeEmbeddedPatterns(EMBEDDED_DEFAULT_PATTERNS_BASE64, "0".repeat(64)),
     ).toThrow("could not be decoded");
   });
+
+  it.each([
+    null,
+    {
+      version: 1,
+      updated: "today",
+      description: "invalid metadata",
+      categories: {
+        fixture: { name: "Fixture", description: "x", patterns: [] },
+      },
+    },
+    {
+      version: "1",
+      updated: "today",
+      description: "invalid category",
+      categories: { fixture: null },
+    },
+    {
+      version: "1",
+      updated: "today",
+      description: "invalid patterns",
+      categories: {
+        fixture: { name: "Fixture", description: "x", patterns: {} },
+      },
+    },
+    {
+      version: "1",
+      updated: "today",
+      description: "invalid rule",
+      categories: {
+        fixture: {
+          name: "Fixture",
+          description: "x",
+          patterns: [
+            {
+              pattern: "x",
+              id: "FIXTURE",
+              severity: "unknown",
+              message: "x",
+              flags: 1,
+            },
+          ],
+        },
+      },
+    },
+  ])("rejects structurally invalid decoded rules %#", (value) => {
+    const invalid = encodeCanonical(value);
+
+    expect(() =>
+      decodeEmbeddedPatterns(invalid.encoded, invalid.digest),
+    ).toThrow("could not be decoded");
+  });
 });
 
 describe("release data generation", () => {

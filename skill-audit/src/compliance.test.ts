@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { auditCompliance, checkCompliance } from "./compliance.js";
+import {
+  auditCompliance,
+  checkCompliance,
+  getComplianceSummary,
+  type ComplianceReport,
+} from "./compliance.js";
 import { SkillManifest } from "./types.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -87,5 +92,20 @@ describe("compliance audit", () => {
     expect(example).not.toMatch(
       /✅ Compliant|Non-Compliant|law violation|GDPR violation/i,
     );
+  });
+
+  it("summarizes the worst risk and framework score bands", () => {
+    const reports = [
+      { score: 90, riskLevel: "minimal" },
+      { score: 70, riskLevel: "limited" },
+      { score: 40, riskLevel: "unacceptable" },
+    ] as ComplianceReport[];
+
+    expect(getComplianceSummary(reports)).toEqual({
+      overallScore: 67,
+      overallRiskLevel: "unacceptable",
+      frameworksPassed: 1,
+      frameworksFailed: 1,
+    });
   });
 });
