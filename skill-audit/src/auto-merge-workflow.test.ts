@@ -47,6 +47,12 @@ describe("App-token auto-merge boundary", () => {
     );
     expect(reconciler).toContain("vars.NFMA_AUTO_MERGE_CLIENT_ID");
     expect(reconciler).toContain("secrets.NFMA_AUTO_MERGE_PRIVATE_KEY");
+    expect(reconciler).toContain(
+      "pull-requests: read # Reads structured eligibility state through the API.",
+    );
+    expect(reconciler).toContain(
+      "zizmor: ignore[secrets-outside-env] Only mints a short-lived token for this repository.",
+    );
     expect(reconciler).toContain("permission-contents: write");
     expect(reconciler).toContain("permission-pull-requests: write");
     expect(reconciler).not.toMatch(
