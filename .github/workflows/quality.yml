@@ -3,6 +3,8 @@ name: Quality
 on:
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
 
@@ -39,7 +41,10 @@ jobs:
       - name: Check formatting
         working-directory: skill-audit
         env:
-          FORMAT_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          FORMAT_BASE: >-
+            ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
+            github.event_name == 'merge_group' && github.event.merge_group.base_sha ||
+            github.event.before }}
         run: npm run format:check
 
       - name: Lint JavaScript and TypeScript
