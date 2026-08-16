@@ -21,8 +21,6 @@ import {
   EMBEDDED_RULES_SHA256,
 } from "./generated/release-data.js";
 import { decodeEmbeddedPatterns, loadEmbeddedPatterns } from "./patterns.js";
-import "./cli.js";
-import "./release.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryDirectories: string[] = [];
