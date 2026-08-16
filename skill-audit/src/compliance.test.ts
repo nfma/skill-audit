@@ -34,6 +34,24 @@ describe("compliance audit", () => {
     expect(findings.every(finding => finding.file === "/fixture/SKILL.md")).toBe(true);
   });
 
+  it("preserves reachable compliance signals in circular frontmatter", () => {
+    const allowedTools: Record<string, unknown> = { consent: true };
+    allowedTools.self = allowedTools;
+    const metadata: Record<string, unknown> = { oversight: "human" };
+    metadata.self = metadata;
+    const fixture = {
+      ...manifest("Minimal skill documentation."),
+      allowedTools,
+      metadata,
+    } as SkillManifest;
+
+    const reports = checkCompliance(fixture);
+    const vietnam = reports.find(report => report.framework === "VN_AI_LAW_2026");
+
+    expect(vietnam?.findings.some(finding => finding.requirement === "VN-AI-002")).toBe(false);
+    expect(vietnam?.findings.some(finding => finding.requirement === "VN-AI-004")).toBe(false);
+  });
+
   it("ships heuristic guidance with the current Vietnam AI Law citation", () => {
     const reference = readFileSync(join(packageRoot, "references", "compliance-frameworks.md"), "utf8");
     const example = readFileSync(join(packageRoot, "examples", "example-compliance-report.md"), "utf8");

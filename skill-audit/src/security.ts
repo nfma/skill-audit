@@ -536,7 +536,7 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
   }
 
   if (manifest) {
-    findings.push(...validateContextContract(manifest, files, resolvedPath));
+    findings.push(...validateContextContract(manifest, resolvedPath));
   }
 
   // Provenance checks (origin is optional metadata, not spec-required)
@@ -556,25 +556,50 @@ export function auditSecurity(skill: SkillInfo, manifest?: SkillManifest): Secur
   return { findings: filteredFindings, unreadableFiles };
 }
 
-function validateContextContract(manifest: SkillManifest, files: string[], resolvedPath: string): Finding[] {
-  if (!skillCanExecute(manifest, files)) return [];
+const PORTABLE_CONTEXT_KEYS = {
+  reads: "skill-audit-context-reads",
+  requires: "skill-audit-context-requires",
+  writes: "skill-audit-context-writes",
+  confirmation: "skill-audit-confirmation"
+} as const;
 
+function validateContextContract(manifest: SkillManifest, resolvedPath: string): Finding[] {
   const skillFile = `${resolvedPath}/SKILL.md`;
-  const context = manifest.context;
-  if (!context || typeof context !== "object" || Array.isArray(context)) {
+  const contract = resolveContextContract(manifest);
+  if (!contract) {
     return [{
       id: "CTX-001",
       category: "ENV",
       asi: "ASI05",
       severity: "medium",
       file: skillFile,
-      message: "Executable skill does not declare a session context contract",
-      recommendation: "Add frontmatter context.reads, context.requires, context.writes, and confirmation fields so agents can reason before invoking shell/tool behavior."
+      message: "Skill does not declare a session context contract",
+      recommendation: "Add namespaced metadata keys for skill-audit-context-reads, skill-audit-context-requires, skill-audit-context-writes, and skill-audit-confirmation."
     }];
   }
 
-  const contract = context as Record<string, unknown>;
   const findings: Finding[] = [];
+  const legacyContext = manifest.context;
+  const metadata = manifest.metadata;
+  if (
+    legacyContext
+    && typeof legacyContext === "object"
+    && !Array.isArray(legacyContext)
+    && metadata
+    && typeof metadata === "object"
+    && !Array.isArray(metadata)
+    && Object.values(PORTABLE_CONTEXT_KEYS).some(key => Object.hasOwn(metadata, key))
+  ) {
+    findings.push({
+      id: "CTX-007",
+      category: "ENV",
+      asi: "ASI04",
+      severity: "medium",
+      file: skillFile,
+      message: "Context contract declares both legacy context and portable metadata",
+      recommendation: "Remove the legacy context mapping when adding portable skill-audit context metadata."
+    });
+  }
   if (!Array.isArray(contract.reads)) {
     findings.push({
       id: "CTX-002",
@@ -583,7 +608,7 @@ function validateContextContract(manifest: SkillManifest, files: string[], resol
       severity: "low",
       file: skillFile,
       message: "Context contract does not declare what session facts the skill reads",
-      recommendation: "Declare context.reads with narrow fields such as user_goal, target_environment, or changed_files."
+      recommendation: "Declare metadata.skill-audit-context-reads with narrow fields such as user_goal, target_environment, or changed_files."
     });
   }
   if (!Array.isArray(contract.requires)) {
@@ -594,7 +619,7 @@ function validateContextContract(manifest: SkillManifest, files: string[], resol
       severity: "medium",
       file: skillFile,
       message: "Context contract does not declare invocation preconditions",
-      recommendation: "Declare context.requires for required user intent, approvals, clean worktree, or verification status."
+      recommendation: "Declare metadata.skill-audit-context-requires for required user intent, approvals, clean worktree, or verification status."
     });
   }
   if (!Array.isArray(contract.writes)) {
@@ -605,7 +630,7 @@ function validateContextContract(manifest: SkillManifest, files: string[], resol
       severity: "low",
       file: skillFile,
       message: "Context contract does not declare what should be remembered after execution",
-      recommendation: "Declare context.writes with compact summary fields such as commands_run, files_changed, and verification_result."
+      recommendation: "Declare metadata.skill-audit-context-writes with compact summary fields such as commands_run, files_changed, and verification_result."
     });
   }
   if (!contract.confirmation) {
@@ -616,7 +641,7 @@ function validateContextContract(manifest: SkillManifest, files: string[], resol
       severity: "medium",
       file: skillFile,
       message: "Context contract does not declare a confirmation boundary",
-      recommendation: "Declare confirmation: never, on-risk, or always for shell/tool execution."
+      recommendation: "Declare metadata.skill-audit-confirmation as never, on-risk, or always for shell/tool execution."
     });
   }
 
@@ -636,10 +661,50 @@ function validateContextContract(manifest: SkillManifest, files: string[], resol
   return findings;
 }
 
-function skillCanExecute(manifest: SkillManifest, files: string[]): boolean {
-  const allowedTools = String(manifest.allowedTools || "");
-  const content = manifest.content;
-  return /bash|shell|terminal|run_shell_command|execute|script/i.test(allowedTools)
-    || /```\s*(bash|sh|shell)|\b(npm|npx|bun|pnpm|python|bash|sh)\s+(install|run|exec|[\w.-]+)/i.test(content)
-    || files.some(file => /(^|\/)(scripts?|bin)\//.test(file));
+function resolveContextContract(
+  manifest: SkillManifest
+): Record<string, unknown> | undefined {
+  const legacyContext = manifest.context;
+  if (
+    legacyContext
+    && typeof legacyContext === "object"
+    && !Array.isArray(legacyContext)
+  ) {
+    const contract = legacyContext as Record<string, unknown>;
+    return {
+      ...contract,
+      confirmation: parseMetadataString(contract.confirmation)
+    };
+  }
+
+  const metadata = manifest.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return undefined;
+  }
+
+  if (!Object.values(PORTABLE_CONTEXT_KEYS).some(key => Object.hasOwn(metadata, key))) {
+    return undefined;
+  }
+
+  return {
+    reads: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.reads]),
+    requires: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.requires]),
+    writes: parseMetadataList(metadata[PORTABLE_CONTEXT_KEYS.writes]),
+    confirmation: parseMetadataString(metadata[PORTABLE_CONTEXT_KEYS.confirmation])
+  };
+}
+
+export function parseMetadataList(value: unknown): string[] | undefined {
+  if (typeof value !== "string") return undefined;
+  const items = value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : undefined;
+}
+
+function parseMetadataString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized || undefined;
 }

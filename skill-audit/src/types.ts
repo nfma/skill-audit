@@ -12,7 +12,7 @@ export interface SkillManifest {
   license?: string;
   compatibility?: string;
   metadata?: Record<string, string>;
-  allowedTools?: string;
+  allowedTools?: unknown;
   context?: unknown;
   content: string;
   files: string[];

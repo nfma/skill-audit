@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getCategoryFromId, getAsiFromId, auditSecurity } from "./security.js";
+import {
+  getCategoryFromId,
+  getAsiFromId,
+  auditSecurity,
+  parseMetadataList,
+} from "./security.js";
+import { validateSkillSpec } from "./spec.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -19,6 +25,38 @@ afterEach(() => {
 // legitimate skill. auditSecurity also emits PII/CTX findings, but those are
 // not "security-prefix" findings, so they are intentionally not filtered here.
 const SECURITY_PREFIXES = ["EX", "SC", "CL", "CE", "PI"] as const;
+
+function auditContext(frontmatter: string) {
+  const root = mkdtempSync(join(tmpdir(), "skill-audit-ctx-"));
+  roots.push(root);
+  const skillRoot = join(root, "ctx-minimal");
+  mkdirSync(skillRoot, { recursive: true });
+  writeFileSync(
+    join(skillRoot, "SKILL.md"),
+    `---
+name: ctx-minimal
+description: Minimal context-contract fixture.
+${frontmatter}
+---
+
+# Minimal skill
+
+Follow standard procedures.
+`,
+  );
+  const specResult = validateSkillSpec(skillRoot, "ctx-minimal");
+  expect(specResult.manifest).toBeDefined();
+
+  return auditSecurity(
+    {
+      name: "ctx-minimal",
+      path: skillRoot,
+      scope: "project",
+      agents: ["Example"],
+    } as any,
+    specResult.manifest,
+  );
+}
 
 describe("getCategoryFromId", () => {
   it("maps PI to Prompt Injection", () => {
@@ -235,45 +273,223 @@ Follow standard procedures.
 });
 
 describe("auditSecurity context-contract", () => {
-  it("flags an executable skill that does not declare context.reads", () => {
-    const root = mkdtempSync(join(tmpdir(), "skill-audit-ctx-"));
-    roots.push(root);
-    const skillRoot = join(root, "ctx-executable");
-    mkdirSync(skillRoot, { recursive: true });
-    const skillMd = `---
-name: ctx-executable
-description: Executable skill without a context contract.
----
+  it("requires a context contract for a skill without execution signals", () => {
+    const result = auditContext("");
 
-# Executable skill
-
-Run the following to deploy:
-
-\`\`\`bash
-curl -fsSL https://example.com/install.sh | bash
-\`\`\`
-`;
-    writeFileSync(join(skillRoot, "SKILL.md"), skillMd);
-
-    // skillCanExecute triggers on the bash code block; passing a manifest with
-    // no `context` is what makes validateContextContract emit CTX findings.
-    const manifest = {
-      name: "ctx-executable",
-      description: "Executable skill without a context contract.",
-      content: skillMd,
-      files: [join(skillRoot, "SKILL.md")],
-    };
-
-    const result = auditSecurity(
-      {
-        name: "ctx-executable",
-        path: skillRoot,
-        scope: "project",
-        agents: ["Example"],
-      } as any,
-      manifest as any,
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-001"]);
+    expect(result.findings.find(f => f.id === "CTX-001")).toEqual(
+      expect.objectContaining({
+        severity: "medium",
+        message: "Skill does not declare a session context contract",
+      }),
     );
-
-    expect(result.findings.some((f) => f.id.startsWith("CTX"))).toBe(true);
   });
+
+  it("accepts a complete legacy mapping-valued context contract", () => {
+    const result = auditContext(`context:
+  reads: [user_goal]
+  requires: [explicit_user_intent]
+  writes: [verification_result]
+  confirmation: on-risk`);
+
+    expect(result.findings.filter(f => f.id.startsWith("CTX"))).toEqual([]);
+  });
+
+  it("accepts legacy context alongside non-context metadata", () => {
+    const result = auditContext(`context:
+  reads: [user_goal]
+  requires: [explicit_user_intent]
+  writes: [verification_result]
+  confirmation: on-risk
+metadata:
+  author: example
+  version: "1"`);
+
+    expect(result.findings.filter(f => f.id.startsWith("CTX"))).toEqual([]);
+  });
+
+  it.each([
+    ["reads", "CTX-002"],
+    ["requires", "CTX-003"],
+    ["writes", "CTX-004"],
+    ["confirmation", "CTX-005"],
+  ])("reports missing legacy context.%s", (missingKey, expectedFinding) => {
+    const values: Record<string, string> = {
+      reads: "[user_goal]",
+      requires: "[explicit_user_intent]",
+      writes: "[verification_result]",
+      confirmation: "on-risk",
+    };
+    delete values[missingKey];
+    const frontmatter = Object.entries(values)
+      .map(([key, value]) => `  ${key}: ${value}`)
+      .join("\n");
+    const result = auditContext(`context:\n${frontmatter}`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual([expectedFinding]);
+  });
+
+  it.each([
+    ["whitespace-only", `"   "`, ["CTX-005"]],
+    ["boolean", "true", ["CTX-005"]],
+    ["zero", "0", ["CTX-005"]],
+    ["empty", `""`, ["CTX-005"]],
+    ["valid", "never", []],
+  ])(
+    "normalizes %s confirmation consistently",
+    (_label, confirmation, expectedFindings) => {
+      const legacy = auditContext(`context:
+  reads: [user_goal]
+  requires: [explicit_user_intent]
+  writes: [verification_result]
+  confirmation: ${confirmation}`);
+      const portable = auditContext(`metadata:
+  skill-audit-context-reads: user_goal
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: verification_result
+  skill-audit-confirmation: ${confirmation}`);
+
+      for (const result of [legacy, portable]) {
+        expect(
+          result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+        ).toEqual(expectedFindings);
+      }
+    },
+  );
+
+  it("accepts portable metadata alongside Claude's context: fork", () => {
+    const result = auditContext(`context: fork
+metadata:
+  skill-audit-context-reads: user_goal, target_scope
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: commands_run, verification_result
+  skill-audit-confirmation: on-risk`);
+
+    expect(result.findings.filter(f => f.id.startsWith("CTX"))).toEqual([]);
+  });
+
+  it("reports legacy and portable context contracts declared together", () => {
+    const result = auditContext(`context:
+  reads: [user_goal]
+  requires: [explicit_user_intent]
+  writes: [verification_result]
+  confirmation: on-risk
+metadata:
+  skill-audit-context-reads: all_context`);
+
+    expect(result.findings.filter(f => f.id.startsWith("CTX"))).toEqual([
+      expect.objectContaining({ id: "CTX-007", severity: "medium" }),
+    ]);
+  });
+
+  it("preserves CTX-002 for portable metadata without reads", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: verification_result
+  skill-audit-confirmation: on-risk`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-002"]);
+  });
+
+  it("preserves CTX-003 for portable metadata without requires", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-reads: user_goal
+  skill-audit-context-writes: verification_result
+  skill-audit-confirmation: on-risk`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-003"]);
+  });
+
+  it("preserves CTX-004 for portable metadata without writes", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-reads: user_goal
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-confirmation: on-risk`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-004"]);
+  });
+
+  it("preserves CTX-005 for portable metadata without confirmation", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-reads: user_goal
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: verification_result`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-005"]);
+  });
+
+  it("keeps CTX-001 when metadata has no portable context keys", () => {
+    const result = auditContext(`metadata:
+  version: "1"`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-001"]);
+  });
+
+  it("treats whitespace-only portable confirmation as missing", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-reads: user_goal
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: verification_result
+  skill-audit-confirmation: "   "`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-005"]);
+  });
+
+  it("preserves CTX-006 after splitting portable reads", () => {
+    const result = auditContext(`metadata:
+  skill-audit-context-reads: user_goal, all_context
+  skill-audit-context-requires: explicit_user_intent
+  skill-audit-context-writes: verification_result
+  skill-audit-confirmation: on-risk`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual(["CTX-006"]);
+  });
+
+  it("splits, trims, and drops empty portable metadata list items", () => {
+    expect(parseMetadataList("a , b ,, c")).toEqual(["a", "b", "c"]);
+    expect(parseMetadataList("")).toBeUndefined();
+    expect(parseMetadataList(",,,")).toBeUndefined();
+    expect(parseMetadataList("  ,  , ")).toBeUndefined();
+  });
+
+  it.each([
+    ["skill-audit-context-reads", "CTX-002"],
+    ["skill-audit-context-requires", "CTX-003"],
+    ["skill-audit-context-writes", "CTX-004"],
+  ])("treats empty portable %s as missing", (emptyKey, expectedFinding) => {
+    const values: Record<string, string> = {
+      "skill-audit-context-reads": "user_goal",
+      "skill-audit-context-requires": "explicit_user_intent",
+      "skill-audit-context-writes": "verification_result",
+      "skill-audit-confirmation": "on-risk",
+    };
+    values[emptyKey] = "  ,  , ";
+    const frontmatter = Object.entries(values)
+      .map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`)
+      .join("\n");
+    const result = auditContext(`metadata:\n${frontmatter}`);
+
+    expect(
+      result.findings.filter(f => f.id.startsWith("CTX")).map(f => f.id),
+    ).toEqual([expectedFinding]);
+  });
+
 });

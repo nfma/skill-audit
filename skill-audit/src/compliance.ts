@@ -406,6 +406,30 @@ const GDPR_REQUIREMENTS: ComplianceRequirement[] = [
 // Main Compliance Check Function
 // ============================================================
 
+function serializeComplianceValue(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+
+  const ancestors: object[] = [];
+  try {
+    return JSON.stringify(value, function (_key, nestedValue) {
+      if (typeof nestedValue === "bigint") return nestedValue.toString();
+      if (nestedValue === null || typeof nestedValue !== "object") {
+        return nestedValue;
+      }
+
+      while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) {
+        ancestors.pop();
+      }
+      if (ancestors.includes(nestedValue)) return "[Circular]";
+      ancestors.push(nestedValue);
+      return nestedValue;
+    }) ?? "";
+  } catch {
+    return "[Unserializable]";
+  }
+}
+
 export function checkCompliance(
   manifest: SkillManifest
 ): ComplianceReport[] {
@@ -415,8 +439,8 @@ export function checkCompliance(
     manifest.name,
     manifest.description,
     manifest.content,
-    manifest.allowedTools || '',
-    JSON.stringify(manifest.metadata || {})
+    serializeComplianceValue(manifest.allowedTools),
+    serializeComplianceValue(manifest.metadata)
   ].join('\n');
   
   // Check each framework

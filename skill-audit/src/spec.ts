@@ -216,12 +216,17 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
     });
   }
 
-  // SPEC-13: Validate allowed-tools structure (if present)
-  if (manifest.allowedTools) {
-    findings.push(...validateAllowedTools(manifest.allowedTools, skillMdPath));
+  if (parsed.data.metadata !== undefined) {
+    findings.push(...validateMetadata(parsed.data.metadata, skillMdPath));
   }
 
-  // SPEC-14: SKILL.md length budget check
+  // SPEC-14 and SPEC-15 are retired. Do not reuse ids that downstream consumers may track.
+  // SPEC-20: Validate allowed-tools structure (if present)
+  if (parsed.data["allowed-tools"] !== undefined) {
+    findings.push(...validateAllowedTools(parsed.data["allowed-tools"], skillMdPath));
+  }
+
+  // SPEC-13: SKILL.md length budget check
   const lineCount = skillMdContent.split('\n').length;
   if (lineCount > 500) {
     findings.push({
@@ -234,7 +239,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
     });
   }
 
-  // SPEC-15: Directory structure sanity check
+  // SPEC-16/SPEC-17: Directory structure sanity check
   findings.push(...validateDirectoryStructure(skillPath));
 
   const valid = !findings.some(f => f.severity === "critical");
@@ -243,33 +248,35 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
 }
 
 function validateAllowedTools(allowedTools: unknown, filePath: string): Finding[] {
-  const findings: Finding[] = [];
-
-  if (Array.isArray(allowedTools)) {
-    for (const tool of allowedTools) {
-      if (typeof tool !== "string" && typeof tool !== "object") {
-        findings.push({
-          id: "SPEC-14",
-          category: "SPEC",
-          asi: "SPEC",
-          severity: "medium",
-          file: filePath,
-          message: `allowed-tools contains non-string/object: ${typeof tool}`
-        });
-      }
-    }
-  } else if (allowedTools !== undefined) {
-    findings.push({
-      id: "SPEC-15",
-      category: "SPEC",
-      asi: "SPEC",
-      severity: "medium",
-      file: filePath,
-      message: "allowed-tools should be an array or undefined"
-    });
+  if (typeof allowedTools === "string" && allowedTools.trim().length > 0) {
+    return [];
   }
 
-  return findings;
+  return [{
+    id: "SPEC-20",
+    category: "SPEC",
+    asi: "SPEC",
+    severity: "medium",
+    file: filePath,
+    message: "allowed-tools must be a non-empty space-separated string"
+  }];
+}
+
+function validateMetadata(metadata: unknown, filePath: string): Finding[] {
+  const isStringMap = metadata !== null
+    && typeof metadata === "object"
+    && !Array.isArray(metadata)
+    && Object.values(metadata).every(value => typeof value === "string");
+  if (isStringMap) return [];
+
+  return [{
+    id: "SPEC-19",
+    category: "SPEC",
+    asi: "SPEC",
+    severity: "medium",
+    file: filePath,
+    message: "metadata must be a mapping of string keys to string values"
+  }];
 }
 
 function validateDirectoryStructure(skillPath: string): Finding[] {
