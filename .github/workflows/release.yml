@@ -195,6 +195,8 @@ jobs:
     needs: [build, validate, attest]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      GH_REPO: ${{ github.repository }}
     permissions:
       contents: write # Create and publish the immutable GitHub Release.
     steps:
