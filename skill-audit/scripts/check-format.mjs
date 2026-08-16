@@ -17,7 +17,7 @@ const excludedDirectories = [
 ];
 
 function git(arguments_, options = {}) {
-  return execFileSync("git", arguments_, {
+  return execFileSync("/usr/bin/git", arguments_, {
     cwd: repositoryRoot,
     ...options,
   });
@@ -84,7 +84,7 @@ function changedFiles(base) {
         !excludedDirectories.some((directory) => path.startsWith(directory)),
     )
     .filter((path) => existsSync(join(repositoryRoot, path)))
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
 }
 
 const files = changedFiles(resolveBase());
