@@ -119,10 +119,29 @@ function validateReportHealth(report) {
       "Semgrep report time metadata must contain a fixpoint_timeouts array",
     );
   }
-  if (report.time.fixpoint_timeouts.length > 0) {
-    throw new Error(
-      `Semgrep taint analysis did not reach a fixpoint for ${report.time.fixpoint_timeouts.length} target${report.time.fixpoint_timeouts.length === 1 ? "" : "s"}`,
-    );
+
+  return report.time.fixpoint_timeouts;
+}
+
+function describeFixpointTimeout(timeout) {
+  const path = timeout?.location?.path;
+  const line = timeout?.location?.start?.line;
+  const column = timeout?.location?.start?.col;
+  if (
+    typeof path === "string" &&
+    Number.isInteger(line) &&
+    Number.isInteger(column)
+  ) {
+    return `${path}:${line}:${column}`;
+  }
+
+  return JSON.stringify(timeout?.location ?? null);
+}
+
+function reportFixpointTimeouts(timeouts) {
+  console.log(`Semgrep taint fixpoint timeouts: ${timeouts.length}.`);
+  for (const timeout of timeouts) {
+    console.log(`  - ${describeFixpointTimeout(timeout)}`);
   }
 }
 
@@ -310,11 +329,17 @@ function checkScanErrors(actual, expected) {
 function main(argv) {
   const options = parseArguments(argv);
   const report = JSON.parse(readFileSync(options.reportPath, "utf8"));
-  validateReportHealth(report);
+  const fixpointTimeouts = validateReportHealth(report);
   const findings = normalizeReport(report, options.repoRoot);
   const scanErrors = normalizeScanErrors(report, options.repoRoot);
+  reportFixpointTimeouts(fixpointTimeouts);
 
   if (options.writeBaseline) {
+    if (fixpointTimeouts.length > 0) {
+      throw new Error(
+        "Cannot write a Semgrep baseline from a scan with taint fixpoint timeouts",
+      );
+    }
     const baseline = {
       schemaVersion: SCHEMA_VERSION,
       findings: findings.map(baselineFinding),

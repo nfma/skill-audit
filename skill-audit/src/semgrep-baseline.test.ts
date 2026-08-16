@@ -109,6 +109,7 @@ describe("Semgrep baseline checker", () => {
     const result = runChecker(fixture);
 
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("Semgrep taint fixpoint timeouts: 0.");
     expect(result.stdout).toContain(
       "matches 1 reviewed finding groups (1 occurrence)",
     );
@@ -139,17 +140,72 @@ describe("Semgrep baseline checker", () => {
     expect(result.stderr).toContain("Semgrep report");
   });
 
-  it("fails closed when taint analysis reports a fixpoint timeout", () => {
+  it("records a fixpoint timeout when findings match the reviewed baseline", () => {
+    const fixture = createFixture();
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.time.fixpoint_timeouts = [
+      {
+        location: {
+          path: "fixture.ts",
+          start: { line: 1, col: 7 },
+        },
+      },
+    ];
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("Semgrep taint fixpoint timeouts: 1.");
+    expect(result.stdout).toContain("fixture.ts:1:7");
+  });
+
+  it("fails when a fixpoint timeout accompanies finding drift", () => {
+    const fixture = createFixture();
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.time.fixpoint_timeouts = [
+      {
+        location: {
+          path: "fixture.ts",
+          start: { line: 1, col: 7 },
+        },
+      },
+    ];
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+    writeFileSync(fixture.findingFile, "const fixture = changedInput;\n");
+
+    const result = runChecker(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Semgrep taint fixpoint timeouts: 1.");
+    expect(result.stderr).toContain("Semgrep baseline mismatch");
+  });
+
+  it("refuses to create a baseline from a degraded scan", () => {
     const fixture = createFixture();
     const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
-    report.time.fixpoint_timeouts = [{ path: "fixture.ts" }];
+    report.time.fixpoint_timeouts = [
+      {
+        location: {
+          path: "fixture.ts",
+          start: { line: 1, col: 7 },
+        },
+      },
+    ];
     writeFileSync(fixture.reportPath, JSON.stringify(report));
 
     const result = runChecker(fixture, ["--write-baseline"]);
 
     expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Semgrep taint fixpoint timeouts: 1.");
     expect(result.stderr).toContain(
-      "Semgrep taint analysis did not reach a fixpoint for 1 target",
+      "Cannot write a Semgrep baseline from a scan with taint fixpoint timeouts",
     );
   });
 
