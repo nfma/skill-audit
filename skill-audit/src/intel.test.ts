@@ -16,10 +16,14 @@ vi.mock("fs", async (importOriginal) => {
 
 import {
   type AdvisoryRecord,
+  fetchEPSS,
   fetchKEV,
+  fetchNVD,
   isCacheStale,
   mergeByAlias,
   prioritizeRecords,
+  queryGHSA,
+  queryOSV,
   saveToCache,
 } from "./intel.js";
 
@@ -55,9 +59,17 @@ function streamingJsonResponse(signal: AbortSignal): Response {
   });
 }
 
+function jsonResponse(value: unknown): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.clearAllMocks();
 });
@@ -198,5 +210,166 @@ describe("advisory aggregation", () => {
       "SONATYPE",
     ]);
     expect(records[0]?.id).toBe("EPSS-low");
+  });
+});
+
+describe("advisory response normalization", () => {
+  it("normalizes OSV and authenticated GHSA responses", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          vulns: [
+            {
+              id: "OSV-2026-1",
+              aliases: ["CVE-2026-0001"],
+              severity: [{ type: "CVSS_V3", score: "7.5" }],
+              published: "2026-08-01",
+              modified: "2026-08-02",
+              summary: "OSV fixture",
+              references: [{ type: "WEB", url: "https://osv.dev/v/fixture" }],
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            securityVulnerabilities: {
+              nodes: [
+                {
+                  advisory: {
+                    ghsaId: "GHSA-fixture",
+                    summary: "GHSA fixture",
+                    severity: "HIGH",
+                    publishedAt: "2026-08-03",
+                    identifiers: [{ type: "CVE", value: "CVE-2026-0001" }],
+                  },
+                  severity: "HIGH",
+                  vulnerableVersionRange: "< 2.0.0",
+                },
+              ],
+            },
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("GITHUB_TOKEN", "fixture-token");
+
+    await expect(queryOSV("npm", "fixture-package")).resolves.toEqual([
+      expect.objectContaining({
+        id: "OSV-2026-1",
+        aliases: ["CVE-2026-0001"],
+        severity: "CVSS_V3",
+        references: ["https://osv.dev/v/fixture"],
+      }),
+    ]);
+    await expect(queryGHSA("npm", "fixture-package")).resolves.toEqual([
+      expect.objectContaining({
+        id: "GHSA-fixture",
+        aliases: ["CVE-2026-0001"],
+        severity: "HIGH",
+      }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({
+        Authorization: "Bearer fixture-token",
+      }),
+    });
+  });
+
+  it("normalizes successful KEV, EPSS, and NVD feeds", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          vulnerabilities: [
+            {
+              cveID: "CVE-2026-0002",
+              dateAdded: "2026-08-04",
+              shortDescription: "KEV fixture",
+              reference: "https://www.cisa.gov/fixture",
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "OK",
+          total: 1,
+          limit: 500,
+          data: [
+            {
+              cve: "CVE-2026-0002",
+              epss: "0.75",
+              percentile: "0.95",
+              date: "2026-08-05",
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          resultsPerPage: 1,
+          startIndex: 0,
+          totalResults: 1,
+          format: "NVD_CVE",
+          version: "2.0",
+          vulnerabilities: [
+            {
+              cve: {
+                id: "CVE-2026-0002",
+                published: "2026-08-04",
+                lastModified: "2026-08-05",
+                vulnerabilityStatus: "Analyzed",
+                descriptions: [{ lang: "en", value: "NVD fixture" }],
+                metrics: {
+                  cvssMetricV31: [
+                    {
+                      cvssData: {
+                        version: "3.1",
+                        vectorString: "CVSS:3.1/AV:N/AC:L",
+                        baseScore: 9.8,
+                        baseSeverity: "CRITICAL",
+                      },
+                    },
+                  ],
+                },
+                weaknesses: [
+                  { description: [{ lang: "en", value: "CWE-79" }] },
+                ],
+                references: [{ url: "https://nvd.nist.gov/vuln/fixture" }],
+              },
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("NVD_API_KEY", "fixture-key");
+
+    await expect(fetchKEV()).resolves.toEqual([
+      expect.objectContaining({
+        id: "CVE-2026-0002",
+        kev: true,
+        references: ["https://www.cisa.gov/fixture"],
+      }),
+    ]);
+    await expect(fetchEPSS()).resolves.toEqual([
+      expect.objectContaining({ id: "CVE-2026-0002", epss: 0.75 }),
+    ]);
+    await expect(fetchNVD()).resolves.toEqual([
+      expect.objectContaining({
+        id: "CVE-2026-0002",
+        cvss: 9.8,
+        cvssVector: "CVSS:3.1/AV:N/AC:L",
+        cwe: ["CWE-79"],
+        summary: "NVD fixture",
+        references: ["https://nvd.nist.gov/vuln/fixture"],
+      }),
+    ]);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ apiKey: "fixture-key" }),
+    });
   });
 });
