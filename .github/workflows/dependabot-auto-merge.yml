@@ -14,7 +14,8 @@ jobs:
   enable-auto-merge:
     name: Enable squash auto-merge
     if: >-
-      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      (github.event.pull_request.user.login == 'dependabot[bot]' ||
+      github.event.pull_request.user.login == 'nfma') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false
     runs-on: ubuntu-latest
