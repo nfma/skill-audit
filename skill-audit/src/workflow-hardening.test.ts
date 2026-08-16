@@ -121,4 +121,16 @@ describe("repository workflow hardening", () => {
     expect(quality?.content).toContain("FORMAT_BASE:");
     expect(quality?.content).toContain("uvx --no-build");
   });
+
+  it("runs full-tree Semgrep with an exact reviewed baseline", () => {
+    const security = workflows.find(
+      (workflow) => workflow.name === "security.yml",
+    );
+
+    expect(security?.content).toContain("Run full Semgrep scan");
+    expect(security?.content).toContain("check-semgrep.mjs");
+    expect(security?.content).toContain("--baseline .semgrep-baseline.json");
+    expect(security?.content).not.toContain("--baseline-commit");
+    expect(security?.content).not.toContain("github.event_name != 'schedule'");
+  });
 });

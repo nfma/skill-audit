@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "findings": [
+    {
+      "checkId": "generic.secrets.security.detected-pgp-private-key-block.detected-pgp-private-key-block",
+      "path": "skill-audit/rules/default-patterns.json",
+      "severity": "ERROR",
+      "message": "Something that looks like a PGP private key block is detected. This is a potential hardcoded secret that could be leaked if this code is committed. Instead, remove this code block from the commit.",
+      "sourceSha256": "abfb0c2322a87c9f17f4fed5cd884ed9c6933e5d6e63e1bd32a8d11533612c9a",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "This literal is the PII-031 detector signature for PGP private-key headers. It contains no key body or secret material, and removing it would disable the product's intended detection."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/deps.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "4dc6512ec9ac8c79b12e2cfca6cae6b7d86e492bd49a3db254d35691b14c275a",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "scanWithOSVLockfile selects lockfile from a fixed filename allowlist after an exact readdir match. resolvedPath is the caller-selected audit root, so the join cannot introduce a traversal component."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/deps.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "b259608cacd0e2ee3a6c17e68f8dc75dd6c8b5a03b553c9b1c9d7719a742c421",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "extractPackagesFromLockfiles gets filename from the fixed LOCKFILE_PATTERNS keys and confirms the same name is present in readdir output. The selected name contains no path separator or user-controlled segment."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/discover.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "3edf0b58d8a495e83a399f2d10b512e00c3433b24512accc20c48ede5577ae59",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "entry is returned by readdirSync(realDir). The traversal then uses lstat/realpath plus isWithinRoot before following a symlink or descending, so a child cannot escape the audited root."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/discover.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "f0b6bc84cd1a4805a5636972b5e914e5e1d387a5a38841995b9a0a4134a4e3e7",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "resolveSkillPath normalizes the caller's explicitly selected audit target rather than appending input beneath a protected base. realpathSync follows immediately and supplies the canonical target used by later boundary checks."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/environment.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "50556af6cb6a2f92f86c1ac5309b8182dcafdae8a31c60d74ea74638dcde054e",
+      "count": 4,
+      "review": {
+        "status": "reviewed",
+        "rationale": "buildWorkspaceInstructionFiles and buildWorkspacePackageFiles append only fixed, application-defined relative names to the operator-selected workspace root. No untrusted child path is accepted."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/environment.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "61b6b74b8389caaf23b24d3cf7ce5d7ab9ca16e8c228a370608e8f364e584727",
+      "count": 4,
+      "review": {
+        "status": "reviewed",
+        "rationale": "buildShellFiles and buildAgentConfigFiles append only fixed, application-defined configuration names to the selected account home used for the environment audit. No untrusted child path is accepted."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/environment.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "9bf4ce6f9ce7536e5e1dd5049682d7f6f5da447af59ea038212878fd83556fa0",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "An explicit baselinePath is intentionally accepted as the operator-selected storage location; otherwise the code appends a fixed .skill-audit/baselines/environment.json suffix to the selected home."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/environment.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "b2c260e5e1b8c1f04da2f0566a6f3396779d46f5a5cbd0962af52f386ed2ebc8",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "whichAll intentionally probes every PATH entry for a fixed sensitive-binary name as part of environment risk detection. The candidate is checked for executability and reported; it is not a protected-base file read."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/environment.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "d65a191ad05e4f4cb4e570fa3f2cf25992479c582d4ac684bedcc6c2e970f398",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "These resolve calls only normalize two paths for an environment-risk classification comparison. They do not read, write, or execute the resolved target."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "23a60e79b73cafd82319c6729e61f34c166e3139be38b6b8436cb46eab1f49d4",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "updateAdvisoryDB writes metadata.json beneath the output directory explicitly selected by the operator. The appended filename is fixed and cannot traverse."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "40483b815eeed86cbb4acffc561d986c97c51b762c920b7d741b2fb13562627d",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "getMetaPath calls normalizeCacheSource before interpolation; that function accepts only own keys of MAX_CACHE_AGE_DAYS. CACHE_DIR and the .meta.json suffix are fixed."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "457c127264a0169db144e87d5c1e8ad9ed2ac676ba4b5aff246047fde05d6f67",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "updateAdvisoryDB writes the fixed nvd.json filename beneath the output directory explicitly selected by the operator. No untrusted child path is accepted."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "52929411c8eae9ce15cc17ae95d006fbd69c942dd2f9557b96e86a28b00b5886",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "getCachePath calls normalizeCacheSource before interpolation; that function accepts only own keys of MAX_CACHE_AGE_DAYS. CACHE_DIR and the .jsonl suffix are fixed."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "5d6dd0f93a63a595a42b32dae70016306d87e77a343d9859903286dc0be49fde",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "updateAdvisoryDB writes the fixed kev.json filename beneath the output directory explicitly selected by the operator. No untrusted child path is accepted."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "9caa0f10bcffb5d545e513e2be8f6f80a3055aad1dfa5e7cbf7a1d455c44b6a5",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "updateAdvisoryDB writes the fixed epss.json filename beneath the output directory explicitly selected by the operator. No untrusted child path is accepted."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/spec.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "082de1e9b556184fede231d32524aba95ee69de122aece4b652ec5dcf7b41125",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "This initial skillMdPath is a diagnostic path made from the caller-selected skill root plus the fixed SKILL.md filename. The actual read path is canonicalized and boundary-checked later in the same function."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/spec.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "16268bac80914d5acc99b3fadb8a5cf7c0fa079e4f67ee5c0c7943c2e2770b23",
+      "count": 2,
+      "review": {
+        "status": "reviewed",
+        "rationale": "entry is returned by readdirSync(skillPath), and the joined path is used only by statSync to classify recommended directories in the caller-selected skill. No file content is read through this path."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "path": "skill-audit/src/spec.ts",
+      "severity": "WARNING",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "sourceSha256": "c67d770a258a13b608b4df4a19827c2ad2d631950d1d988d41384a681a70aa03",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "The appended SKILL.md filename is fixed. realpathSync canonicalizes it, and isWithinRoot rejects an escaping symlink before the manifest is read."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+      "path": "skill-audit/src/deps.ts",
+      "severity": "INFO",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "sourceSha256": "c237303f61304a3064070b30e837a6fd529e9f67d0f66382881c433a47bd154d",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "filename is selected from the fixed LOCKFILE_PATTERNS keys and is used only in a local parse-error diagnostic. It cannot inject a format directive."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+      "path": "skill-audit/src/index.ts",
+      "severity": "INFO",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "sourceSha256": "2e8cb3b34053754ed8e5c79a0fe16aa0a54f044f3175073765ab5307ca01c7d6",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "source is selected from the fixed kev/epss/nvd update list and is used only in local CLI error output. It cannot inject a format directive."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "INFO",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "sourceSha256": "5800b528a495e2b247320251dd149956e1d11fffe7743c8a5c7f40f26a66144a",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "ecosystem and packageName may originate in audited dependency metadata, but this value is emitted only to the operator's local diagnostic stream. It does not affect execution, file access, or an authorization decision."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+      "path": "skill-audit/src/intel.ts",
+      "severity": "INFO",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "sourceSha256": "d1d15d82bdd4430bf581d462de8782b70911e5728fb7550792c6cd79004a436e",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "ecosystem and packageName may originate in audited dependency metadata, but this value is emitted only to the operator's local diagnostic stream. It does not affect execution, file access, or an authorization decision."
+      }
+    },
+    {
+      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+      "path": "skill-audit/src/patterns.ts",
+      "severity": "INFO",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "sourceSha256": "a6e0f3194ec491a6f0416adb45420126693cff90609ffe732bb050728e5e3d56",
+      "count": 1,
+      "review": {
+        "status": "reviewed",
+        "rationale": "rule.id comes from loaded pattern metadata and is emitted only to the operator's local compile-error diagnostic. It does not affect execution, file access, or an authorization decision."
+      }
+    }
+  ]
+}

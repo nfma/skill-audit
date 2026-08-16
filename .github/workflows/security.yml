@@ -38,29 +38,21 @@ jobs:
           ./skill-audit/scripts/install-linux-ci-tools.sh "$RUNNER_TEMP/ci-tools"
           echo "$RUNNER_TEMP/ci-tools" >> "$GITHUB_PATH"
 
-      - name: Run Semgrep on changed code
-        if: github.event_name != 'schedule'
-        env:
-          PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE: ${{ github.event.before }}
+      - name: Run full Semgrep scan
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            baseline_commit=$PULL_REQUEST_BASE
-          elif [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            baseline_commit=$PUSH_BEFORE
-          else
-            baseline_commit=$(git rev-parse HEAD^)
-          fi
-
+          report="$RUNNER_TEMP/semgrep-results.json"
           uvx --no-build --from semgrep==1.173.0 semgrep scan \
             --config p/default \
             --config p/security-audit \
-            --baseline-commit "$baseline_commit" \
-            --error \
             --metrics=off \
             --exclude skill-audit/node_modules \
             --exclude skill-audit/dist \
+            --json-output "$report" \
             .
+          node skill-audit/scripts/check-semgrep.mjs \
+            --report "$report" \
+            --baseline .semgrep-baseline.json \
+            --repo-root .
 
       - name: Scan Git history for secrets
         run: gitleaks git --redact --verbose .
