@@ -289,5 +289,45 @@
         "rationale": "rule.id comes from loaded pattern metadata and is emitted only to the operator's local compile-error diagnostic. It does not affect execution, file access, or an authorization decision."
       }
     }
+  ],
+  "scanErrors": [
+    {
+      "code": 3,
+      "level": "warn",
+      "type": "PartialParsing",
+      "path": "skill-audit/src/intel.test.ts",
+      "message": "Syntax error at line skill-audit/src/intel.test.ts:4:\n `>()` was unexpected",
+      "sources": [
+        {
+          "path": "skill-audit/src/intel.test.ts",
+          "sourceSha256": "2909c26b756727bedf8a305414ae067571d3cae63f932ef2b773ddb76108b144"
+        }
+      ],
+      "review": {
+        "status": "reviewed",
+        "rationale": "Semgrep 1.173 cannot parse Vitest's valid type-generic importOriginal callback syntax; TypeScript typechecking and the intel test suite compile and execute this source."
+      }
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": "PartialParsing",
+      "path": "skill-audit/src/security.ts",
+      "message": "Syntax error at line skill-audit/src/security.ts:72:\n `/` was unexpected",
+      "sources": [
+        {
+          "path": "skill-audit/src/security.ts",
+          "sourceSha256": "21e8f1825537758706e251a51ad73758a196d34a0bdbbd60b4c2bf532a141773"
+        },
+        {
+          "path": "skill-audit/src/security.ts",
+          "sourceSha256": "8fa608acffea781404506ce878c4660c8e4b957464f84b56a441a8eda74ec51e"
+        }
+      ],
+      "review": {
+        "status": "reviewed",
+        "rationale": "Semgrep 1.173 partially parses the valid HTML-comment detector regular expression and reports a cascading warning; TypeScript typechecking, build, and security regression tests compile and execute this source."
+      }
+    }
   ]
 }

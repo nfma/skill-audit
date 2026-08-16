@@ -33,6 +33,7 @@ function createFixture() {
           extra: { severity: "WARNING", message: "Regression fixture" },
         },
       ],
+      errors: [],
     }),
   );
   return { directory, findingFile, reportPath, baselinePath };
@@ -62,6 +63,12 @@ function markBaselineReviewed(baselinePath: string) {
   const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
   for (const finding of baseline.findings) {
     finding.review = {
+      status: "reviewed",
+      rationale: "Reviewed regression fixture.",
+    };
+  }
+  for (const error of baseline.scanErrors) {
+    error.review = {
       status: "reviewed",
       rationale: "Reviewed regression fixture.",
     };
@@ -113,5 +120,63 @@ describe("Semgrep baseline checker", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("New findings:");
     expect(result.stderr).toContain("Stale baseline entries:");
+  });
+
+  it("fails when Semgrep reports a new parser warning", () => {
+    const fixture = createFixture();
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.errors.push({
+      code: 3,
+      level: "warn",
+      type: ["PartialParsing", []],
+      message: "Regression parser warning",
+      path: "fixture.ts",
+      spans: [
+        {
+          file: "fixture.ts",
+          start: { line: 1 },
+          end: { line: 1 },
+        },
+      ],
+    });
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("New scan errors:");
+  });
+
+  it("fails when a reviewed parser warning disappears", () => {
+    const fixture = createFixture();
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.errors.push({
+      code: 3,
+      level: "warn",
+      type: ["PartialParsing", []],
+      message: "Regression parser warning",
+      path: "fixture.ts",
+      spans: [
+        {
+          file: "fixture.ts",
+          start: { line: 1 },
+          end: { line: 1 },
+        },
+      ],
+    });
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+    report.errors = [];
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Stale scan-error entries:");
   });
 });

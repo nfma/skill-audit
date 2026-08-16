@@ -127,9 +127,72 @@ function normalizeReport(report, repoRoot) {
   );
 }
 
+function scanErrorKey(error) {
+  return JSON.stringify([
+    error.code,
+    error.level,
+    error.type,
+    error.path,
+    error.message,
+    error.sources,
+  ]);
+}
+
+function normalizeScanErrors(report, repoRoot) {
+  if (!Array.isArray(report.errors)) {
+    throw new TypeError("Semgrep report must contain an errors array");
+  }
+
+  return report.errors
+    .map((error) => {
+      if (typeof error.path !== "string" || !Array.isArray(error.spans)) {
+        throw new TypeError("Semgrep scan error is missing path or span data");
+      }
+      const { relativePath } = normalizeFindingPath(error.path, repoRoot);
+      const sources = error.spans
+        .map((span) => {
+          const { canonicalPath, relativePath: sourcePath } =
+            normalizeFindingPath(span.file, repoRoot);
+          return {
+            path: sourcePath,
+            sourceSha256: sourceHash(
+              canonicalPath,
+              span.start?.line,
+              span.end?.line,
+            ),
+          };
+        })
+        .sort((left, right) =>
+          JSON.stringify(left).localeCompare(JSON.stringify(right)),
+        );
+
+      return {
+        code: error.code,
+        level: error.level,
+        type: Array.isArray(error.type) ? error.type[0] : error.type,
+        path: relativePath,
+        message: error.message,
+        sources,
+      };
+    })
+    .sort((left, right) =>
+      scanErrorKey(left).localeCompare(scanErrorKey(right)),
+    );
+}
+
 function baselineFinding(finding) {
   return {
     ...finding,
+    review: {
+      status: "unreviewed",
+      rationale: "",
+    },
+  };
+}
+
+function baselineScanError(error) {
+  return {
+    ...error,
     review: {
       status: "unreviewed",
       rationale: "",
@@ -143,11 +206,16 @@ function validateBaseline(baseline) {
       `Unsupported Semgrep baseline schema: ${String(baseline.schemaVersion)}`,
     );
   }
-  if (!Array.isArray(baseline.findings)) {
-    throw new TypeError("Semgrep baseline must contain a findings array");
+  if (
+    !Array.isArray(baseline.findings) ||
+    !Array.isArray(baseline.scanErrors)
+  ) {
+    throw new TypeError(
+      "Semgrep baseline must contain findings and scanErrors arrays",
+    );
   }
 
-  return baseline.findings.map((finding) => {
+  const findings = baseline.findings.map((finding) => {
     if (
       finding.review?.status !== "reviewed" ||
       typeof finding.review.rationale !== "string" ||
@@ -160,11 +228,26 @@ function validateBaseline(baseline) {
     const { review: _review, ...normalizedFinding } = finding;
     return normalizedFinding;
   });
+  const scanErrors = baseline.scanErrors.map((error) => {
+    if (
+      error.review?.status !== "reviewed" ||
+      typeof error.review.rationale !== "string" ||
+      error.review.rationale.trim() === ""
+    ) {
+      throw new Error(
+        `Semgrep scan error is not explicitly reviewed: ${scanErrorKey(error)}`,
+      );
+    }
+    const { review: _review, ...normalizedError } = error;
+    return normalizedError;
+  });
+
+  return { findings, scanErrors };
 }
 
-function difference(source, target) {
-  const targetKeys = new Set(target.map(findingKey));
-  return source.filter((finding) => !targetKeys.has(findingKey(finding)));
+function difference(source, target, key = findingKey) {
+  const targetKeys = new Set(target.map(key));
+  return source.filter((item) => !targetKeys.has(key(item)));
 }
 
 function describeFinding(finding) {
@@ -196,15 +279,44 @@ function checkBaseline(actual, expected) {
   throw new Error(lines.join("\n"));
 }
 
+function checkScanErrors(actual, expected) {
+  const added = difference(actual, expected, scanErrorKey);
+  const stale = difference(expected, actual, scanErrorKey);
+  if (added.length === 0 && stale.length === 0) {
+    return;
+  }
+
+  const describe = (error) =>
+    `${error.type} [${error.level}] ${error.path}: ${error.message}`;
+  const lines = ["Semgrep scan-error baseline mismatch."];
+  if (added.length > 0) {
+    lines.push(
+      "",
+      "New scan errors:",
+      ...added.map((error) => `  + ${describe(error)}`),
+    );
+  }
+  if (stale.length > 0) {
+    lines.push(
+      "",
+      "Stale scan-error entries:",
+      ...stale.map((error) => `  - ${describe(error)}`),
+    );
+  }
+  throw new Error(lines.join("\n"));
+}
+
 function main(argv) {
   const options = parseArguments(argv);
   const report = JSON.parse(readFileSync(options.reportPath, "utf8"));
   const findings = normalizeReport(report, options.repoRoot);
+  const scanErrors = normalizeScanErrors(report, options.repoRoot);
 
   if (options.writeBaseline) {
     const baseline = {
       schemaVersion: SCHEMA_VERSION,
       findings: findings.map(baselineFinding),
+      scanErrors: scanErrors.map(baselineScanError),
     };
     writeFileSync(
       options.baselinePath,
@@ -217,13 +329,18 @@ function main(argv) {
   }
 
   const baseline = JSON.parse(readFileSync(options.baselinePath, "utf8"));
-  checkBaseline(findings, validateBaseline(baseline));
+  const expected = validateBaseline(baseline);
+  checkBaseline(findings, expected.findings);
+  checkScanErrors(scanErrors, expected.scanErrors);
   const occurrences = findings.reduce(
     (total, finding) => total + finding.count,
     0,
   );
   console.log(
     `Semgrep matches ${findings.length} reviewed finding groups (${occurrences} occurrence${occurrences === 1 ? "" : "s"}).`,
+  );
+  console.log(
+    `Semgrep scan errors match ${scanErrors.length} reviewed baseline ${scanErrors.length === 1 ? "entry" : "entries"}.`,
   );
 }
 
@@ -236,4 +353,4 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 }
 
-export { checkBaseline, normalizeReport };
+export { checkBaseline, normalizeReport, normalizeScanErrors };
