@@ -51,6 +51,83 @@ export function normalizeDocumentationText(content: Uint8Array): string {
   return decoded.replace(/\r\n?/g, "\n");
 }
 
+function isCanonicalDocumentationPath(path: string): boolean {
+  if (path === "SKILL.md") {
+    return true;
+  }
+  if (
+    !path.startsWith("references/") ||
+    path.includes("\\") ||
+    [...path].some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint <= 0x1f || codePoint === 0x7f;
+    })
+  ) {
+    return false;
+  }
+
+  const segments = path.split("/");
+  return (
+    segments.length > 1 &&
+    segments[0] === "references" &&
+    segments
+      .slice(1)
+      .every((segment) => segment !== "" && segment !== "." && segment !== "..")
+  );
+}
+
+function assertDocumentationDigestSet(
+  value: unknown,
+): asserts value is DocumentationDigestSet {
+  if (!value || typeof value !== "object") {
+    throw new Error("Release descriptor has invalid documentation entries");
+  }
+  const documentation = value as Partial<DocumentationDigestSet>;
+  if (!Array.isArray(documentation.files)) {
+    throw new Error("Release descriptor has invalid documentation entries");
+  }
+
+  const documentationPaths = new Set<string>();
+  for (const file of documentation.files) {
+    if (
+      !file ||
+      typeof file.path !== "string" ||
+      !isCanonicalDocumentationPath(file.path) ||
+      documentationPaths.has(file.path) ||
+      typeof file.sha256 !== "string" ||
+      !/^[0-9a-f]{64}$/.test(file.sha256)
+    ) {
+      throw new Error("Release descriptor has invalid documentation entries");
+    }
+    documentationPaths.add(file.path);
+  }
+
+  const sortedDocumentation = [...documentation.files].sort((left, right) =>
+    Buffer.compare(
+      Buffer.from(left.path, "utf8"),
+      Buffer.from(right.path, "utf8"),
+    ),
+  );
+  if (
+    JSON.stringify(sortedDocumentation) !==
+      JSON.stringify(documentation.files) ||
+    !documentationPaths.has("SKILL.md") ||
+    typeof documentation.upstreamDocsSha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(documentation.upstreamDocsSha256)
+  ) {
+    throw new Error("Release descriptor has invalid documentation ordering");
+  }
+
+  const aggregate = documentation.files
+    .map(({ path, sha256 }) => `${path}\0${sha256}\n`)
+    .join("");
+  if (sha256Hex(aggregate) !== documentation.upstreamDocsSha256) {
+    throw new Error(
+      "Release descriptor has an invalid documentation aggregate",
+    );
+  }
+}
+
 function documentationPaths(packageRoot: string): string[] {
   const paths = ["SKILL.md"];
   const referencesRoot = join(packageRoot, "references");
@@ -142,12 +219,8 @@ export function createReleaseDescriptor(input: {
       `Executable size must be between 1 and ${RELEASE_MAX_BYTES} bytes`,
     );
   }
-  for (const digest of [
-    input.executableSha256,
-    input.embeddedRulesSha256,
-    input.documentation.upstreamDocsSha256,
-    ...input.documentation.files.map((file) => file.sha256),
-  ]) {
+  assertDocumentationDigestSet(input.documentation);
+  for (const digest of [input.executableSha256, input.embeddedRulesSha256]) {
     if (!/^[0-9a-f]{64}$/.test(digest)) {
       throw new Error(`Invalid lowercase SHA-256 digest: ${digest}`);
     }
@@ -220,40 +293,5 @@ export function assertReleaseDescriptor(
   ) {
     throw new Error("Release descriptor has invalid executable identity");
   }
-  const documentationPaths = new Set<string>();
-  const sortedDocumentation = [...descriptor.documentation.files].sort(
-    (left, right) =>
-      Buffer.compare(
-        Buffer.from(left.path, "utf8"),
-        Buffer.from(right.path, "utf8"),
-      ),
-  );
-  for (const file of descriptor.documentation.files) {
-    if (
-      !file ||
-      typeof file.path !== "string" ||
-      file.path === "" ||
-      documentationPaths.has(file.path) ||
-      !/^[0-9a-f]{64}$/.test(file.sha256)
-    ) {
-      throw new Error("Release descriptor has invalid documentation entries");
-    }
-    documentationPaths.add(file.path);
-  }
-  if (
-    JSON.stringify(sortedDocumentation) !==
-      JSON.stringify(descriptor.documentation.files) ||
-    !documentationPaths.has("SKILL.md") ||
-    !/^[0-9a-f]{64}$/.test(descriptor.documentation.upstreamDocsSha256)
-  ) {
-    throw new Error("Release descriptor has invalid documentation ordering");
-  }
-  const aggregate = descriptor.documentation.files
-    .map(({ path, sha256 }) => `${path}\0${sha256}\n`)
-    .join("");
-  if (sha256Hex(aggregate) !== descriptor.documentation.upstreamDocsSha256) {
-    throw new Error(
-      "Release descriptor has an invalid documentation aggregate",
-    );
-  }
+  assertDocumentationDigestSet(descriptor.documentation);
 }

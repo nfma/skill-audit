@@ -66,9 +66,11 @@ The script simply displays a banner message prompting users to optionally run `s
 
 In CI environments (GitHub Actions, GitLab CI, Jenkins, etc.), the script exits silently without displaying anything.
 
-## Automatic Hook Setup
+## Source-checkout Hook Setup
 
-After installation, you'll see a message about setting up the PreToolUse hook:
+Developers who run `npm install` in a source checkout may see this message
+about setting up the PreToolUse hook. Installing the GitHub Release executable
+does not run `postinstall` and does not display this banner:
 
 ```
 ┌─────────────────────────────────────────────────────────┐

@@ -42,10 +42,12 @@ gh release download "$version" \
   --pattern "skill-audit-$version.mjs" \
   --pattern "skill-audit-$version.mjs.sha256"
 shasum -a 256 -c "skill-audit-$version.mjs.sha256"
-chmod 0755 "skill-audit-$version.mjs"
+mkdir -p "$HOME/.local/bin"
+install -m 0755 "skill-audit-$version.mjs" "$HOME/.local/bin/skill-audit"
+export PATH="$HOME/.local/bin:$PATH"
 
 # Audit global skills
-./skill-audit-v0.10.0.mjs -g
+skill-audit -g
 
 # Lint mode (spec validation only - fast)
 skill-audit --mode lint

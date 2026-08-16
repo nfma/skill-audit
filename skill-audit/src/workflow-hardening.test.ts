@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const workflowsRoot = join(packageRoot, "..", ".github", "workflows");
+const packageManifest = JSON.parse(
+  readFileSync(join(packageRoot, "package.json"), "utf8"),
+) as { private?: boolean };
 const workflows = readdirSync(workflowsRoot)
   .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
   .map((name) => ({
@@ -109,6 +112,7 @@ describe("repository workflow hardening", () => {
     );
 
     expect(combined).not.toMatch(/\bnpm\s+publish\b/);
+    expect(packageManifest.private).toBe(true);
     expect(selfAudit?.content).toContain("check-self-audit.mjs");
     expect(selfAudit?.content).toContain("--path .");
     expect(selfAudit?.content).toContain(
@@ -120,6 +124,9 @@ describe("repository workflow hardening", () => {
     );
     expect(quality?.content).toContain("FORMAT_BASE:");
     expect(quality?.content).toContain("uvx --no-build");
+
+    const ci = workflows.find((workflow) => workflow.name === "ci.yml");
+    expect(ci?.content).toContain("bash scripts/test-audit.sh");
   });
 
   it("runs full-tree Semgrep with an exact reviewed baseline", () => {

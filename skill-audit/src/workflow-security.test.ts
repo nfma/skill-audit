@@ -124,18 +124,30 @@ describe("GitHub Release integrity boundary", () => {
 
   it("attests before publishing with narrowly scoped permissions", () => {
     expect(releaseWorkflow).toContain("permissions: {}\n");
+    expect(releaseWorkflow).toContain("id-token: write # Mint the OIDC token");
     expect(releaseWorkflow).toContain(
-      "id-token: write\n      attestations: write\n      artifact-metadata: write",
+      "attestations: write # Publish attestations",
+    );
+    expect(releaseWorkflow).toContain(
+      "artifact-metadata: write # Associate attestation metadata",
     );
     expect(releaseWorkflow).toContain(
       "publish:\n    name: Publish the validated GitHub Release",
     );
     expect(releaseWorkflow).toContain(
-      "permissions:\n      contents: write\n    steps:",
+      "contents: write # Create and publish the immutable GitHub Release.",
     );
     expect(releaseWorkflow).toContain("gh release create");
     expect(releaseWorkflow).toContain("--draft");
-    expect(releaseWorkflow).toContain("gh release verify");
+    expect(releaseWorkflow).toContain(
+      'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"',
+    );
+    expect(releaseWorkflow).toContain(
+      'gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"',
+    );
+    expect(releaseWorkflow).toContain("asset.digest");
+    expect(releaseWorkflow).toContain("release.immutable !== true");
+    expect(releaseWorkflow).not.toContain("gh release verify");
   });
 
   it("keeps advisory refresh unable to mutate release assets", () => {

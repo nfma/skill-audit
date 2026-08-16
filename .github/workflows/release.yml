@@ -173,9 +173,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      id-token: write # Mint the OIDC token used for artifact attestations.
+      attestations: write # Publish attestations for the validated subjects.
+      artifact-metadata: write # Associate attestation metadata with the artifacts.
     steps:
       - name: Download the exact handoff artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
@@ -196,7 +196,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: write # Create and publish the immutable GitHub Release.
     steps:
       - name: Download the exact handoff artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
@@ -232,10 +232,54 @@ jobs:
             --title "$RELEASE_TAG" \
             --verify-tag
 
-      - name: Publish and verify the immutable release
+      - name: Verify uploaded draft asset digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          EXPECTED_EXECUTABLE_SHA256: ${{ needs.build.outputs.executable-sha256 }}
+          EXPECTED_DESCRIPTOR_SHA256: ${{ needs.build.outputs.descriptor-sha256 }}
+          EXPECTED_CHECKSUM_SHA256: ${{ needs.build.outputs.checksum-sha256 }}
+        run: |
+          set -euo pipefail
+          release_json="$RUNNER_TEMP/release-draft.json"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$release_json"
+          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const releases = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8")).flat();
+          const matches = releases.filter(release => release.tag_name === process.env.RELEASE_TAG);
+          if (matches.length !== 1) process.exit(1);
+          const [release] = matches;
+          const expected = new Map([
+            [`skill-audit-${process.env.RELEASE_TAG}.mjs`, `sha256:${process.env.EXPECTED_EXECUTABLE_SHA256}`],
+            [`skill-audit-${process.env.RELEASE_TAG}.mjs.sha256`, `sha256:${process.env.EXPECTED_CHECKSUM_SHA256}`],
+            [`skill-audit-${process.env.RELEASE_TAG}-release.json`, `sha256:${process.env.EXPECTED_DESCRIPTOR_SHA256}`],
+          ]);
+          if (release.draft !== true) process.exit(1);
+          if (!Array.isArray(release.assets) || release.assets.length !== expected.size) process.exit(1);
+          for (const asset of release.assets) {
+            if (asset.state !== "uploaded" || asset.digest !== expected.get(asset.name)) process.exit(1);
+            expected.delete(asset.name);
+          }
+          if (expected.size !== 0) process.exit(1);
+          NODE
+
+      - name: Publish and confirm the immutable release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          set -euo pipefail
           gh release edit "$RELEASE_TAG" --draft=false
-          gh release verify "$RELEASE_TAG"
+          release_json="$RUNNER_TEMP/release-published.json"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release_json"
+          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const release = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8"));
+          if (
+            release.tag_name !== process.env.RELEASE_TAG ||
+            release.draft !== false ||
+            release.immutable !== true ||
+            !Array.isArray(release.assets) ||
+            release.assets.length !== 3
+          ) process.exit(1);
+          NODE

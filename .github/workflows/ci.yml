@@ -45,6 +45,10 @@ jobs:
         working-directory: ./skill-audit
         run: npm run build
 
+      - name: Run CLI smoke tests
+        working-directory: ./skill-audit
+        run: bash scripts/test-audit.sh
+
       - name: Test CLI
         working-directory: ./skill-audit
         run: node dist/cli.js --help
