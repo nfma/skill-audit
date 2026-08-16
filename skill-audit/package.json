@@ -17,7 +17,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json"
+    "typecheck": "npm run typecheck:ts6 && npm run typecheck:ts7",
+    "typecheck:ts6": "tsc --noEmit && tsc --project tsconfig.test.json",
+    "typecheck:ts7": "node node_modules/typescript-7/bin/tsc --noEmit && node node_modules/typescript-7/bin/tsc --project tsconfig.test.json"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -77,7 +79,8 @@
     "globals": "17.11.0",
     "prettier": "3.9.6",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0",
+    "typescript": "6.0.3",
+    "typescript-7": "npm:typescript@7.0.2",
     "typescript-eslint": "8.67.0",
     "vitest": "^4.1.0"
   }

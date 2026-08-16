@@ -133,4 +133,21 @@ describe("repository workflow hardening", () => {
     expect(security?.content).not.toContain("--baseline-commit");
     expect(security?.content).not.toContain("github.event_name != 'schedule'");
   });
+
+  it("enables same-repository squash auto-merge for nfma and Dependabot", () => {
+    const autoMerge = workflows.find(
+      (workflow) => workflow.name === "dependabot-auto-merge.yml",
+    );
+
+    expect(autoMerge?.content).toContain(
+      "github.event.pull_request.user.login == 'dependabot[bot]'",
+    );
+    expect(autoMerge?.content).toContain(
+      "github.event.pull_request.user.login == 'nfma'",
+    );
+    expect(autoMerge?.content).toContain(
+      "github.event.pull_request.head.repo.full_name == github.repository",
+    );
+    expect(autoMerge?.content).toContain("--auto --squash");
+  });
 });
