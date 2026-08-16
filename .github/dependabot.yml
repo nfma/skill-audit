@@ -11,6 +11,7 @@ updates:
       timezone: "Europe/Berlin"
     cooldown:
       default-days: 7
+    versioning-strategy: "increase"
     open-pull-requests-limit: 5
     reviewers:
       - "nfma"
@@ -18,6 +19,13 @@ updates:
       prefix: "deps"
     labels:
       - "dependencies"
+    groups:
+      npm-non-major:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -29,7 +37,7 @@ updates:
       timezone: "Europe/Berlin"
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 5
     reviewers:
       - "nfma"
     commit-message:
@@ -37,3 +45,10 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      actions-non-major:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

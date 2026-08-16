@@ -42,12 +42,16 @@ function workflowJobs(source: string): WorkflowJob[] {
   }));
 }
 
-function workflowStep(name: string): string {
+function workflowStepFrom(contents: string, name: string): string {
   const marker = `      - name: ${name}\n`;
-  const start = workflow.indexOf(marker);
+  const start = contents.indexOf(marker);
   expect(start, `missing workflow step: ${name}`).toBeGreaterThanOrEqual(0);
-  const next = workflow.indexOf("\n      - name:", start + marker.length);
-  return workflow.slice(start, next === -1 ? workflow.length : next);
+  const next = contents.indexOf("\n      - name:", start + marker.length);
+  return contents.slice(start, next === -1 ? contents.length : next);
+}
+
+function workflowStep(name: string): string {
+  return workflowStepFrom(workflow, name);
 }
 
 describe("Sonar workflow secret boundary", () => {
@@ -123,6 +127,34 @@ describe("Dependabot auto-merge boundary", () => {
       'gh pr merge --repo "$GH_REPO" --auto --squash "$PR_NUMBER"',
     );
     expect(dependabotWorkflow).not.toMatch(/--merge\b|--rebase\b/);
+  });
+
+  it("auto-merges only npm patch and minor updates", () => {
+    const metadata = workflowStepFrom(
+      dependabotWorkflow,
+      "Inspect Dependabot update",
+    );
+    const merge = workflowStepFrom(
+      dependabotWorkflow,
+      "Enable squash auto-merge",
+    );
+    const manual = workflowStepFrom(
+      dependabotWorkflow,
+      "Explain manual review requirement",
+    );
+
+    expect(metadata).toContain(
+      "dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0",
+    );
+    expect(merge).toContain("package-ecosystem == 'npm'");
+    expect(merge).not.toContain("package-ecosystem == 'github-actions'");
+    expect(merge).toContain("update-type == 'version-update:semver-patch'");
+    expect(merge).toContain("update-type == 'version-update:semver-minor'");
+    expect(merge).not.toContain("version-update:semver-major");
+    expect(manual).toContain("package-ecosystem != 'npm'");
+    expect(manual).toContain("update-type != 'version-update:semver-patch'");
+    expect(manual).toContain("update-type != 'version-update:semver-minor'");
+    expect(manual).not.toContain("gh pr merge");
   });
 });
 

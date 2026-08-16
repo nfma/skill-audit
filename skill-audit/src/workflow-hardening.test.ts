@@ -144,7 +144,7 @@ describe("repository workflow hardening", () => {
     expect(security?.content).not.toContain("github.event_name != 'schedule'");
   });
 
-  it("enables same-repository squash auto-merge for nfma and Dependabot", () => {
+  it("enables same-repository squash auto-merge only for Dependabot", () => {
     const autoMerge = workflows.find(
       (workflow) => workflow.name === "dependabot-auto-merge.yml",
     );
@@ -152,7 +152,7 @@ describe("repository workflow hardening", () => {
     expect(autoMerge?.content).toContain(
       "github.event.pull_request.user.login == 'dependabot[bot]'",
     );
-    expect(autoMerge?.content).toContain(
+    expect(autoMerge?.content).not.toContain(
       "github.event.pull_request.user.login == 'nfma'",
     );
     expect(autoMerge?.content).toContain(
