@@ -35,12 +35,12 @@ Before installing a third-party skill, you need to know:
 
 ## Quick Start
 
-v0.10.0 was tagged and built but never published; a release-workflow defect was
-caught before publication. Use v0.10.1.
+v0.10.0 and v0.10.1 were tagged and built but never published; release-workflow
+defects were caught before publication. Use v0.10.2.
 
 ```bash
 # Download the immutable Node 24 executable and its checksum
-version=v0.10.1
+version=v0.10.2
 gh release download "$version" \
   --repo nfma/skill-audit \
   --pattern "skill-audit-$version.mjs" \
@@ -190,14 +190,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=v0.10.1
+          version=v0.10.2
           gh release download "$version" --repo nfma/skill-audit \
             --pattern "skill-audit-$version.mjs" \
             --pattern "skill-audit-$version.mjs.sha256" \
             --dir "$RUNNER_TEMP/skill-audit"
           cd "$RUNNER_TEMP/skill-audit"
           shasum -a 256 -c "skill-audit-$version.mjs.sha256"
-      - run: node "$RUNNER_TEMP/skill-audit/skill-audit-v0.10.1.mjs" -g -t 3.0 --json > results.json
+      - run: node "$RUNNER_TEMP/skill-audit/skill-audit-v0.10.2.mjs" -g -t 3.0 --json > results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: audit-results
