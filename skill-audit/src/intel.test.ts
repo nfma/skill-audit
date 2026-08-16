@@ -372,4 +372,26 @@ describe("advisory response normalization", () => {
       headers: expect.objectContaining({ apiKey: "fixture-key" }),
     });
   });
+
+  it("fails closed when bulk feeds omit their record arrays", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ title: "empty KEV" }))
+      .mockResolvedValueOnce(jsonResponse({ status: "OK" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          resultsPerPage: 0,
+          startIndex: 0,
+          totalResults: 0,
+          format: "NVD_CVE",
+          version: "2.0",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchKEV()).resolves.toEqual([]);
+    await expect(fetchEPSS()).resolves.toEqual([]);
+    await expect(fetchNVD()).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });

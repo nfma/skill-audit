@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -82,5 +90,25 @@ describe("release bundle", () => {
         sourceCommit: "short",
       }),
     ).rejects.toThrow("full lowercase commit SHA");
+  });
+
+  it("rejects missing descriptors and unexpected release assets", async () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "skill-audit-verify-"));
+    try {
+      const emptyRelease = join(temporaryRoot, "empty");
+      const copiedRelease = join(temporaryRoot, "copied");
+      mkdirSync(emptyRelease);
+      cpSync(releaseDirectory, copiedRelease, { recursive: true });
+      writeFileSync(join(copiedRelease, "unexpected.txt"), "unexpected\n");
+
+      await expect(
+        verifyRelease({ packageRoot, releaseDirectory: emptyRelease }),
+      ).rejects.toThrow("exactly one descriptor");
+      await expect(
+        verifyRelease({ packageRoot, releaseDirectory: copiedRelease }),
+      ).rejects.toThrow("Release directory contents differ");
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 });
