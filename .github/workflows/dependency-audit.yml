@@ -85,6 +85,7 @@ jobs:
     steps:
       - name: Require no open Dependabot alerts
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
         run: |
           set -euo pipefail
@@ -98,7 +99,7 @@ jobs:
           fi
 
           if ! alerts=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/dependabot/alerts?state=open&per_page=100" \
+            "repos/${GH_REPO}/dependabot/alerts?state=open&per_page=100" \
             2>&1); then
             echo "Could not read Dependabot alerts:" >&2
             echo "$alerts" >&2
