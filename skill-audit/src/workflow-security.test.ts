@@ -1,25 +1,46 @@
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const workflow = readFileSync(
-  join(packageRoot, "..", ".github", "workflows", "sonar.yml"),
-  "utf8",
-);
+const workflowDirectory = join(packageRoot, "..", ".github", "workflows");
+const workflow = readFileSync(join(workflowDirectory, "sonar.yml"), "utf8");
 const dependabotWorkflow = readFileSync(
-  join(packageRoot, "..", ".github", "workflows", "dependabot-auto-merge.yml"),
+  join(workflowDirectory, "dependabot-auto-merge.yml"),
   "utf8",
 );
 const releaseWorkflow = readFileSync(
-  join(packageRoot, "..", ".github", "workflows", "release.yml"),
+  join(workflowDirectory, "release.yml"),
   "utf8",
 );
 const updateDbWorkflow = readFileSync(
-  join(packageRoot, "..", ".github", "workflows", "update-db.yml"),
+  join(workflowDirectory, "update-db.yml"),
   "utf8",
 );
+
+interface WorkflowJob {
+  body: string;
+  name: string;
+}
+
+function workflowJobs(source: string): WorkflowJob[] {
+  const marker = "\njobs:\n";
+  const markerIndex = source.indexOf(marker);
+  expect(
+    markerIndex,
+    "workflow is missing a jobs mapping",
+  ).toBeGreaterThanOrEqual(0);
+  const jobsSource = source.slice(markerIndex + marker.length);
+  const matches = [...jobsSource.matchAll(/^ {2}([A-Za-z0-9_-]+):\s*$/gm)];
+  return matches.map((match, index) => ({
+    name: match[1],
+    body: jobsSource.slice(
+      match.index,
+      matches[index + 1]?.index ?? jobsSource.length,
+    ),
+  }));
+}
 
 function workflowStep(name: string): string {
   const marker = `      - name: ${name}\n`;
@@ -137,7 +158,6 @@ describe("GitHub Release integrity boundary", () => {
     expect(releaseWorkflow).toContain(
       "contents: write # Create and publish the immutable GitHub Release.",
     );
-    expect(releaseWorkflow).toContain("gh release create");
     expect(releaseWorkflow).toContain("--draft");
     expect(releaseWorkflow).toContain(
       'gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100"',
@@ -148,6 +168,37 @@ describe("GitHub Release integrity boundary", () => {
     expect(releaseWorkflow).toContain("asset.digest");
     expect(releaseWorkflow).toContain("release.immutable !== true");
     expect(releaseWorkflow).not.toContain("gh release verify");
+  });
+
+  it("repo-scopes gh commands in every checkout-less workflow job", () => {
+    const workflowFiles = readdirSync(workflowDirectory).filter(
+      (filename) => filename.endsWith(".yml") || filename.endsWith(".yaml"),
+    );
+    const ghCommand =
+      /\bgh\s+(?:api|attestation|issue|pr|release|repo|run|workflow)\b/;
+
+    for (const filename of workflowFiles) {
+      const source = readFileSync(join(workflowDirectory, filename), "utf8");
+      for (const job of workflowJobs(source)) {
+        if (
+          !ghCommand.test(job.body) ||
+          job.body.includes("actions/checkout@")
+        ) {
+          continue;
+        }
+        expect(
+          job.body,
+          `${filename}:${job.name} must set GH_REPO when it runs gh without a checkout`,
+        ).toContain("GH_REPO: ${{ github.repository }}");
+      }
+    }
+
+    const publishJob = workflowJobs(releaseWorkflow).find(
+      (job) => job.name === "publish",
+    );
+    expect(publishJob).toBeDefined();
+    expect(publishJob?.body).not.toContain("actions/checkout@");
+    expect(publishJob?.body).toContain("GH_REPO: ${{ github.repository }}");
   });
 
   it("keeps advisory refresh unable to mutate release assets", () => {
