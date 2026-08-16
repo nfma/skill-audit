@@ -134,20 +134,25 @@ describe("repository workflow hardening", () => {
     expect(security?.content).not.toContain("github.event_name != 'schedule'");
   });
 
-  it("enables same-repository squash auto-merge for nfma and Dependabot", () => {
-    const autoMerge = workflows.find(
+  it("separates PR signals from App-token squash reconciliation", () => {
+    const signal = workflows.find(
       (workflow) => workflow.name === "dependabot-auto-merge.yml",
     );
+    const reconciler = workflows.find(
+      (workflow) => workflow.name === "auto-merge-reconcile.yml",
+    );
 
-    expect(autoMerge?.content).toContain(
-      "github.event.pull_request.user.login == 'dependabot[bot]'",
+    expect(signal?.content).toContain("permissions: {}");
+    expect(signal?.content).not.toContain("secrets.");
+    expect(reconciler?.content).toContain(
+      'new Set(["nfma", "dependabot[bot]"])',
     );
-    expect(autoMerge?.content).toContain(
-      "github.event.pull_request.user.login == 'nfma'",
+    expect(reconciler?.content).toContain(
+      "pull.headRepository?.nameWithOwner === repositoryFullName",
     );
-    expect(autoMerge?.content).toContain(
-      "github.event.pull_request.head.repo.full_name == github.repository",
+    expect(reconciler?.content).toContain(
+      "secrets.NFMA_AUTO_MERGE_PRIVATE_KEY",
     );
-    expect(autoMerge?.content).toContain("--auto --squash");
+    expect(reconciler?.content).toContain("mergeMethod: SQUASH");
   });
 });
