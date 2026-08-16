@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+} from "node:fs";
 import { join, posix } from "node:path";
 
 export const RELEASE_SCHEMA_VERSION = 1;
@@ -49,6 +57,10 @@ export function sha256Hex(content: string | Uint8Array): string {
 export function normalizeDocumentationText(content: Uint8Array): string {
   const decoded = new TextDecoder("utf-8", { fatal: true }).decode(content);
   return decoded.replace(/\r\n?/g, "\n");
+}
+
+export function compareUtf8Bytes(left: string, right: string): number {
+  return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
 }
 
 function isCanonicalDocumentationPath(path: string): boolean {
@@ -167,9 +179,7 @@ export function computeDocumentationDigests(
   packageRoot: string,
 ): DocumentationDigestSet {
   const seen = new Set<string>();
-  const paths = documentationPaths(packageRoot).sort((left, right) =>
-    Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
-  );
+  const paths = documentationPaths(packageRoot).sort(compareUtf8Bytes);
   const files = paths.map((relativePath) => {
     if (seen.has(relativePath)) {
       throw new Error(
@@ -179,14 +189,21 @@ export function computeDocumentationDigests(
     seen.add(relativePath);
 
     const absolutePath = join(packageRoot, ...relativePath.split("/"));
-    const stat = lstatSync(absolutePath);
-    if (stat.isSymbolicLink() || !stat.isFile()) {
-      throw new Error(
-        `Documentation path must be a regular file: ${relativePath}`,
-      );
+    const descriptor = openSync(
+      absolutePath,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    try {
+      if (!fstatSync(descriptor).isFile()) {
+        throw new Error(
+          `Documentation path must be a regular file: ${relativePath}`,
+        );
+      }
+      const normalized = normalizeDocumentationText(readFileSync(descriptor));
+      return { path: relativePath, sha256: sha256Hex(normalized) };
+    } finally {
+      closeSync(descriptor);
     }
-    const normalized = normalizeDocumentationText(readFileSync(absolutePath));
-    return { path: relativePath, sha256: sha256Hex(normalized) };
   });
   const aggregate = files
     .map(({ path, sha256 }) => `${path}\0${sha256}\n`)

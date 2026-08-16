@@ -78,6 +78,18 @@ describe("release documentation digests", () => {
       "must not be a symlink",
     );
   });
+
+  it("opens each final documentation component without following symlinks", () => {
+    const root = documentationFixture();
+    const target = join(root, "replacement.md");
+    writeFileSync(target, "replacement\n");
+    rmSync(join(root, "SKILL.md"));
+    symlinkSync(target, join(root, "SKILL.md"));
+
+    // O_NOFOLLOW protects the final component that is opened and hashed. Parent
+    // directory replacement is outside the fresh-checkout CI threat model.
+    expect(() => computeDocumentationDigests(root)).toThrow();
+  });
 });
 
 describe("release descriptor", () => {

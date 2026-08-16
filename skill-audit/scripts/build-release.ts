@@ -26,6 +26,7 @@ import {
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(packageRoot, "..");
+const gitExecutable = "/usr/bin/git";
 const outputDirectory = resolve(
   process.env.RELEASE_OUTPUT_DIR ?? join(packageRoot, "release"),
 );
@@ -33,7 +34,7 @@ const expectedTag = `v${PACKAGE_VERSION}`;
 const releaseTag = process.env.RELEASE_TAG ?? expectedTag;
 const sourceCommit =
   process.env.SOURCE_COMMIT ??
-  execFileSync("git", ["rev-parse", "HEAD"], {
+  execFileSync(gitExecutable, ["rev-parse", "HEAD"], {
     cwd: repositoryRoot,
     encoding: "utf8",
   }).trim();
@@ -100,7 +101,7 @@ const executableText = executableBytes.toString("utf8");
 if (!executableText.startsWith("#!/usr/bin/env node\n")) {
   throw new Error("Release executable is missing the required Node shebang");
 }
-if (executableText.indexOf("#!", 2) !== -1) {
+if (executableText.includes("#!", 2)) {
   throw new Error("Release executable contains more than one shebang");
 }
 if (executableBytes.byteLength > RELEASE_MAX_BYTES) {

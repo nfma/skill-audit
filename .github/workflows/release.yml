@@ -184,7 +184,7 @@ jobs:
           path: release
 
       - name: Attest executable and descriptor provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.1.1
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             release/*.mjs

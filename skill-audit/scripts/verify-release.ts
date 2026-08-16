@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import {
   assertReleaseDescriptor,
+  compareUtf8Bytes,
   computeDocumentationDigests,
   RELEASE_EXPORTS,
   sha256Hex,
@@ -53,8 +54,8 @@ const expectedFiles = [
   descriptor.executable.name,
   `${descriptor.executable.name}.sha256`,
   `skill-audit-${descriptor.tag}-release.json`,
-].sort();
-const actualFiles = readdirSync(releaseDirectory).sort();
+].sort(compareUtf8Bytes);
+const actualFiles = readdirSync(releaseDirectory).sort(compareUtf8Bytes);
 if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
   throw new Error(
     `Release directory contents differ: ${JSON.stringify(actualFiles)}`,
@@ -89,7 +90,7 @@ if (
 if (!executableText.startsWith("#!/usr/bin/env node\n")) {
   throw new Error("Release executable has an invalid shebang");
 }
-if (executableText.indexOf("#!", 2) !== -1) {
+if (executableText.includes("#!", 2)) {
   throw new Error("Release executable contains more than one shebang");
 }
 if (!lstatSync(executablePath).isFile()) {
@@ -130,9 +131,9 @@ if (versionResult.stdout.trim() !== descriptor.version) {
 const importProbe = runNode([
   "--input-type=module",
   "--eval",
-  `const value = await import(${JSON.stringify(pathToFileURL(executablePath).href)}); process.stdout.write(JSON.stringify(Object.keys(value).sort()));`,
+  `const value = await import(${JSON.stringify(pathToFileURL(executablePath).href)}); const compare = (left, right) => Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")); process.stdout.write(JSON.stringify(Object.keys(value).sort(compare)));`,
 ]);
-const expectedExports = [...RELEASE_EXPORTS].sort();
+const expectedExports = [...RELEASE_EXPORTS].sort(compareUtf8Bytes);
 if (
   importProbe.stderr !== "" ||
   importProbe.stdout !== JSON.stringify(expectedExports)

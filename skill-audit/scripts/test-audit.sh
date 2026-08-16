@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Check if dist exists (build required)
-if [ ! -d "dist" ]; then
+if [[ ! -d "dist" ]]; then
   echo "⚠️  Build not found. Running npm run build..."
   npm run build
 fi
@@ -144,7 +144,7 @@ set +e
 BLOCK_OUTPUT=$(node dist/cli.js --mode audit --block -t 1.0 --path "$TEST_DIR/dangerous-skill" 2>&1)
 BLOCK_STATUS=$?
 set -e
-if [ "$BLOCK_STATUS" -ne 0 ] && echo "$BLOCK_OUTPUT" | grep -qi "exceeds\|threshold"; then
+if [[ "$BLOCK_STATUS" -ne 0 ]] && echo "$BLOCK_OUTPUT" | grep -qi "exceeds\|threshold"; then
   echo "✅ Test 6 passed (correctly blocked by threshold)"
 else
   echo "❌ Test 6 failed"

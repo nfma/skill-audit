@@ -1,10 +1,4 @@
-import {
-  readFileSync,
-  existsSync,
-  mkdirSync,
-  writeFileSync,
-  statSync,
-} from "fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { resolveSkillAuditCacheDir } from "./cache.js";
 
