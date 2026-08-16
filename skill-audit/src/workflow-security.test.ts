@@ -27,7 +27,12 @@ describe("Sonar workflow secret boundary", () => {
     expect(classifier).toContain(
       "github.event.pull_request.user.login == 'dependabot[bot]'",
     );
-    expect(classifier).toContain("github.event.pull_request.head.repo.fork");
+    expect(classifier).toContain(
+      "github.event.pull_request.head.repo.full_name != github.repository",
+    );
+    expect(classifier).not.toContain(
+      "github.event.pull_request.head.repo.fork",
+    );
     expect(classifier).not.toContain("github.actor");
     expect(classifier).not.toContain("secrets.SONAR_TOKEN");
   });
