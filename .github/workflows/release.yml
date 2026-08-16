@@ -253,9 +253,10 @@ jobs:
           import { readFileSync } from "node:fs";
 
           const attempt = `attempt ${process.env.ATTEMPT}/${process.env.MAX_ATTEMPTS}`;
+          const annotation = process.env.ATTEMPT === process.env.MAX_ATTEMPTS ? "error" : "warning";
           const observed = (value) => JSON.stringify(value) ?? String(value);
           const fail = (label, actual, expected) => {
-            console.error(`::warning::${attempt}: ${label}; observed=${observed(actual)} expected=${observed(expected)}`);
+            console.error(`::${annotation}::${attempt}: ${label}; observed=${observed(actual)} expected=${observed(expected)}`);
             process.exit(1);
           };
           const releases = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8")).flat();
@@ -295,7 +296,9 @@ jobs:
               fi
             else
               api_exit=$?
-              echo "::warning::attempt $attempt/$max_attempts: release enumeration API failed; observed_exit=$api_exit expected_exit=0" >&2
+              annotation=warning
+              if ((attempt == max_attempts)); then annotation=error; fi
+              echo "::$annotation::attempt $attempt/$max_attempts: release enumeration API failed; observed_exit=$api_exit expected_exit=0" >&2
             fi
             if ((attempt == max_attempts)); then
               echo "::error::draft release asset verification failed after $max_attempts attempts" >&2
@@ -314,20 +317,20 @@ jobs:
           set -euo pipefail
           gh release edit "$RELEASE_TAG" --draft=false
           release_json="$RUNNER_TEMP/release-published.json"
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release_json"; then
-            :
-          else
-            api_exit=$?
-            echo "::error::published release lookup failed; observed_exit=$api_exit expected_exit=0" >&2
-            exit 1
-          fi
-          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          max_attempts=6
+          sleep_seconds=1
+          for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release_json"; then
+              validator_exit=0
+              ATTEMPT="$attempt" MAX_ATTEMPTS="$max_attempts" RELEASE_JSON="$release_json" node --input-type=module <<'NODE' || validator_exit=$?
           import { readFileSync } from "node:fs";
 
+          const attempt = `attempt ${process.env.ATTEMPT}/${process.env.MAX_ATTEMPTS}`;
+          const annotation = process.env.ATTEMPT === process.env.MAX_ATTEMPTS ? "error" : "warning";
           const release = JSON.parse(readFileSync(process.env.RELEASE_JSON, "utf8"));
           const observed = (value) => JSON.stringify(value) ?? String(value);
           const fail = (label, actual, expected) => {
-            console.error(`::error::${label}; observed=${observed(actual)} expected=${observed(expected)}`);
+            console.error(`::${annotation}::${attempt}: ${label}; observed=${observed(actual)} expected=${observed(expected)}`);
             process.exit(1);
           };
           if (release.tag_name !== process.env.RELEASE_TAG) {
@@ -338,3 +341,21 @@ jobs:
           if (!Array.isArray(release.assets)) fail("published release assets type", release.assets, "array");
           if (release.assets.length !== 3) fail("published release asset count", release.assets.length, 3);
           NODE
+              if ((validator_exit == 0)); then
+                echo "attempt $attempt/$max_attempts: published release verification succeeded"
+                break
+              fi
+            else
+              api_exit=$?
+              annotation=warning
+              if ((attempt == max_attempts)); then annotation=error; fi
+              echo "::$annotation::attempt $attempt/$max_attempts: published release lookup failed; observed_exit=$api_exit expected_exit=0" >&2
+            fi
+            if ((attempt == max_attempts)); then
+              echo "::error::published release verification failed after $max_attempts attempts" >&2
+              exit 1
+            fi
+            echo "attempt $attempt/$max_attempts: retrying with fresh published release data in ${sleep_seconds}s" >&2
+            sleep "$sleep_seconds"
+            sleep_seconds=$((sleep_seconds * 2))
+          done
