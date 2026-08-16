@@ -29,10 +29,12 @@ describe("canonical PII handling", () => {
   });
 
   it("serializes findings and risk scores with asi only", () => {
-    const serialized = JSON.parse(JSON.stringify({
-      finding: piiFinding,
-      riskScore: calculateRiskScore([piiFinding]),
-    }));
+    const serialized = JSON.parse(
+      JSON.stringify({
+        finding: piiFinding,
+        riskScore: calculateRiskScore([piiFinding]),
+      }),
+    );
 
     expect(serialized.finding).toHaveProperty("asi", "ASI03");
     expect(serialized.finding).not.toHaveProperty("asixx");

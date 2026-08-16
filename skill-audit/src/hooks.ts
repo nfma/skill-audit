@@ -1,17 +1,27 @@
 /**
  * Hook Configuration for Claude Code
- * 
+ *
  * Provides PreToolUse hook that audits skills before installation.
  * Hook is triggered when user runs `npx skills add <package>`.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  copyFileSync,
+} from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
 
 // Default settings path for Claude Code
 const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
-const CLAUDE_SETTINGS_BACKUP = join(homedir(), ".claude", "settings.json.backup");
+const CLAUDE_SETTINGS_BACKUP = join(
+  homedir(),
+  ".claude",
+  "settings.json.backup",
+);
 const SKIP_HOOK_FILE = join(homedir(), ".skill-audit-skip-hook");
 
 // Hook identifier for skill-audit
@@ -28,14 +38,16 @@ export interface HookConfig {
 export function getDefaultHookConfig(): HookConfig {
   return {
     threshold: 3.0,
-    blockOnFailure: true
+    blockOnFailure: true,
   };
 }
 
 /**
  * Generate the PreToolUse hook configuration
  */
-export function generateHookConfig(config: HookConfig = getDefaultHookConfig()): object {
+export function generateHookConfig(
+  config: HookConfig = getDefaultHookConfig(),
+): object {
   return {
     hooks: {
       PreToolUse: [
@@ -43,17 +55,17 @@ export function generateHookConfig(config: HookConfig = getDefaultHookConfig()):
           id: HOOK_ID,
           matcher: {
             toolName: "run_shell_command",
-            input: "npx skills add"
+            input: "npx skills add",
           },
           hooks: [
             {
               type: "command",
-              command: `skill-audit --mode audit --threshold ${config.threshold}${config.blockOnFailure ? " --block" : ""}`
-            }
-          ]
-        }
-      ]
-    }
+              command: `skill-audit --mode audit --threshold ${config.threshold}${config.blockOnFailure ? " --block" : ""}`,
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
@@ -68,10 +80,17 @@ export function shouldSkipHookPrompt(): boolean {
  * Create the skip hook file
  */
 export function createSkipHookFile(): void {
-  writeFileSync(SKIP_HOOK_FILE, JSON.stringify({
-    createdAt: new Date().toISOString(),
-    reason: "User chose to skip hook installation prompt"
-  }, null, 2));
+  writeFileSync(
+    SKIP_HOOK_FILE,
+    JSON.stringify(
+      {
+        createdAt: new Date().toISOString(),
+        reason: "User chose to skip hook installation prompt",
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 /**
@@ -130,13 +149,17 @@ function backupSettings(): boolean {
 export function isHookInstalled(): boolean {
   const settings = loadSettings();
 
-  if (!settings.hooks || !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)) {
+  if (
+    !settings.hooks ||
+    !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)
+  ) {
     return false;
   }
 
   // PreToolUse can be an array of arrays or array of objects
-  const preToolUseHooks = (settings.hooks as Record<string, unknown>).PreToolUse as Array<unknown>;
-  
+  const preToolUseHooks = (settings.hooks as Record<string, unknown>)
+    .PreToolUse as Array<unknown>;
+
   for (const item of preToolUseHooks) {
     // Handle nested array structure
     if (Array.isArray(item)) {
@@ -156,7 +179,10 @@ export function isHookInstalled(): boolean {
 /**
  * Install the PreToolUse hook
  */
-export function installHook(config: HookConfig = getDefaultHookConfig()): { success: boolean; message: string } {
+export function installHook(config: HookConfig = getDefaultHookConfig()): {
+  success: boolean;
+  message: string;
+} {
   // Check if already installed
   if (isHookInstalled()) {
     return { success: true, message: "Hook is already installed" };
@@ -184,18 +210,19 @@ export function installHook(config: HookConfig = getDefaultHookConfig()): { succ
     id: HOOK_ID,
     matcher: {
       toolName: "run_shell_command",
-      input: "npx skills add"
+      input: "npx skills add",
     },
     hooks: [
       {
         type: "command",
-        command: `skill-audit --mode audit --threshold ${config.threshold}${config.blockOnFailure ? " --block" : ""}`
-      }
-    ]
+        command: `skill-audit --mode audit --threshold ${config.threshold}${config.blockOnFailure ? " --block" : ""}`,
+      },
+    ],
   };
 
   // Add the hook - wrap in array to match existing structure
-  const preToolUseHooks = (settings.hooks as Record<string, unknown>).PreToolUse as Array<unknown>;
+  const preToolUseHooks = (settings.hooks as Record<string, unknown>)
+    .PreToolUse as Array<unknown>;
   preToolUseHooks.push([newHook]);
 
   // Ensure directory exists
@@ -207,7 +234,10 @@ export function installHook(config: HookConfig = getDefaultHookConfig()): { succ
   // Write updated settings
   try {
     writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
-    return { success: true, message: `Hook installed successfully (threshold: ${config.threshold})` };
+    return {
+      success: true,
+      message: `Hook installed successfully (threshold: ${config.threshold})`,
+    };
   } catch (e) {
     // Restore backup on failure
     if (existsSync(CLAUDE_SETTINGS_BACKUP)) {
@@ -223,11 +253,15 @@ export function installHook(config: HookConfig = getDefaultHookConfig()): { succ
 export function uninstallHook(): { success: boolean; message: string } {
   const settings = loadSettings();
 
-  if (!settings.hooks || !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)) {
+  if (
+    !settings.hooks ||
+    !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)
+  ) {
     return { success: true, message: "No hooks to remove" };
   }
 
-  const preToolUseHooks = (settings.hooks as Record<string, unknown>).PreToolUse as Array<unknown>;
+  const preToolUseHooks = (settings.hooks as Record<string, unknown>)
+    .PreToolUse as Array<unknown>;
   const initialLength = preToolUseHooks.length;
 
   // Filter out our hook (handles nested array structure)
@@ -284,12 +318,16 @@ export function getHookStatus(): {
 } {
   const settings = loadSettings();
 
-  if (!settings.hooks || !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)) {
+  if (
+    !settings.hooks ||
+    !Array.isArray((settings.hooks as Record<string, unknown>).PreToolUse)
+  ) {
     return { installed: false, settingsPath: CLAUDE_SETTINGS_PATH };
   }
 
-  const preToolUseHooks = (settings.hooks as Record<string, unknown>).PreToolUse as Array<unknown>;
-  
+  const preToolUseHooks = (settings.hooks as Record<string, unknown>)
+    .PreToolUse as Array<unknown>;
+
   // Find the hook in nested array structure
   let hook: Record<string, unknown> | undefined;
   for (const item of preToolUseHooks) {
@@ -318,6 +356,6 @@ export function getHookStatus(): {
   return {
     installed: true,
     config: { threshold, blockOnFailure },
-    settingsPath: CLAUDE_SETTINGS_PATH
+    settingsPath: CLAUDE_SETTINGS_PATH,
   };
 }

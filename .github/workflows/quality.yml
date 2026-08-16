@@ -1,0 +1,126 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript-typescript:
+    name: JavaScript and TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: skill-audit/package-lock.json
+
+      - name: Install dependencies
+        working-directory: skill-audit
+        run: npm ci --ignore-scripts
+
+      - name: Check formatting
+        working-directory: skill-audit
+        run: npm run format:check
+
+      - name: Lint JavaScript and TypeScript
+        working-directory: skill-audit
+        run: npm run lint:js
+
+      - name: Type-check
+        working-directory: skill-audit
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: skill-audit
+        run: npm test
+
+      - name: Build
+        working-directory: skill-audit
+        run: npm run build
+
+  shell:
+    name: Shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned shell analyzers
+        run: |
+          ./skill-audit/scripts/install-linux-ci-tools.sh "$RUNNER_TEMP/ci-tools"
+          echo "$RUNNER_TEMP/ci-tools" >> "$GITHUB_PATH"
+
+      - name: Check shell syntax and quality
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' shell_files < <(git ls-files -z -- '*.sh')
+          test "${#shell_files[@]}" -gt 0
+          for file in "${shell_files[@]}"; do
+            if head -n 1 "$file" | grep -q 'bash'; then
+              bash -n "$file"
+            else
+              sh -n "$file"
+            fi
+          done
+          shellcheck -- "${shell_files[@]}"
+          shfmt -d -i 2 -ci -bn -- "${shell_files[@]}"
+
+  repository:
+    name: Workflow and configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: 0.11.32
+          enable-cache: true
+
+      - name: Install pinned workflow analyzers
+        run: |
+          ./skill-audit/scripts/install-linux-ci-tools.sh "$RUNNER_TEMP/ci-tools"
+          echo "$RUNNER_TEMP/ci-tools" >> "$GITHUB_PATH"
+
+      - name: Validate workflow syntax
+        run: actionlint
+
+      - name: Audit workflow security
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zizmor --persona auditor --min-severity medium .github/workflows
+
+      - name: Lint YAML
+        run: uvx --from yamllint==1.38.0 yamllint .github
+
+      - name: Validate tracked JSON
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$file"
+          done < <(git ls-files -z '*.json')

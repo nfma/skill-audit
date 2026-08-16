@@ -16,18 +16,27 @@ function normalizeFilePath(filePath: string): string {
   return filePath.replace(/ \(code block\)$/i, "");
 }
 
-export function isDocumentedSafeLifecycleScript(filePath: string, content: string): boolean {
+export function isDocumentedSafeLifecycleScript(
+  filePath: string,
+  content: string,
+): boolean {
   const normalizedPath = normalizeFilePath(filePath);
 
-  if (!SAFE_LIFECYCLE_SCRIPT_PATHS.some(pattern => pattern.test(normalizedPath))) {
+  if (
+    !SAFE_LIFECYCLE_SCRIPT_PATHS.some((pattern) => pattern.test(normalizedPath))
+  ) {
     return false;
   }
 
-  if (!REQUIRED_SAFE_CONTENT_PATTERNS.every(pattern => pattern.test(content))) {
+  if (
+    !REQUIRED_SAFE_CONTENT_PATTERNS.every((pattern) => pattern.test(content))
+  ) {
     return false;
   }
 
-  if (FORBIDDEN_SAFE_CONTENT_PATTERNS.some(pattern => pattern.test(content))) {
+  if (
+    FORBIDDEN_SAFE_CONTENT_PATTERNS.some((pattern) => pattern.test(content))
+  ) {
     return false;
   }
 

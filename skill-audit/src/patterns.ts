@@ -37,7 +37,10 @@ export interface CompiledPattern {
   asi: string;
 }
 
-const EXTERNAL_CATEGORY_METADATA: Record<string, { category: FindingCategory; asi: string }> = {
+const EXTERNAL_CATEGORY_METADATA: Record<
+  string,
+  { category: FindingCategory; asi: string }
+> = {
   promptInjection: { category: "PI", asi: "ASI01" },
   credentialLeaks: { category: "SC", asi: "ASI04" },
   shellInjection: { category: "CE", asi: "ASI05" },
@@ -53,11 +56,13 @@ const EXTERNAL_CATEGORY_METADATA: Record<string, { category: FindingCategory; as
 /**
  * Load patterns from JSON file
  */
-export function loadPatterns(patternsFile: string = DEFAULT_PATTERNS_FILE): PatternsFile {
+export function loadPatterns(
+  patternsFile: string = DEFAULT_PATTERNS_FILE,
+): PatternsFile {
   if (!existsSync(patternsFile)) {
     throw new Error(`Patterns file not found: ${patternsFile}`);
   }
-  
+
   const content = readFileSync(patternsFile, "utf-8");
   return JSON.parse(content) as PatternsFile;
 }
@@ -65,13 +70,18 @@ export function loadPatterns(patternsFile: string = DEFAULT_PATTERNS_FILE): Patt
 /**
  * Compile patterns to RegExp objects
  */
-export function compilePatterns(patterns: PatternsFile): Map<string, CompiledPattern[]> {
+export function compilePatterns(
+  patterns: PatternsFile,
+): Map<string, CompiledPattern[]> {
   const compiled = new Map<string, CompiledPattern[]>();
-  
+
   for (const [categoryKey, category] of Object.entries(patterns.categories)) {
     const categoryPatterns: CompiledPattern[] = [];
-    const categoryMetadata = EXTERNAL_CATEGORY_METADATA[categoryKey] ?? { category: "SC" as const, asi: "ASI04" };
-    
+    const categoryMetadata = EXTERNAL_CATEGORY_METADATA[categoryKey] ?? {
+      category: "SC" as const,
+      asi: "ASI04",
+    };
+
     for (const rule of category.patterns) {
       try {
         const regex = new RegExp(rule.pattern, rule.flags || "i");
@@ -81,23 +91,25 @@ export function compilePatterns(patterns: PatternsFile): Map<string, CompiledPat
           severity: rule.severity,
           message: rule.message,
           category: categoryMetadata.category,
-          asi: categoryMetadata.asi
+          asi: categoryMetadata.asi,
         });
       } catch (error) {
         console.error(`Failed to compile pattern ${rule.id}:`, error);
       }
     }
-    
+
     compiled.set(categoryKey, categoryPatterns);
   }
-  
+
   return compiled;
 }
 
 /**
  * Load and compile patterns in one step
  */
-export function loadAndCompile(patternsFile?: string): Map<string, CompiledPattern[]> {
+export function loadAndCompile(
+  patternsFile?: string,
+): Map<string, CompiledPattern[]> {
   const patterns = loadPatterns(patternsFile);
   return compilePatterns(patterns);
 }
@@ -105,7 +117,9 @@ export function loadAndCompile(patternsFile?: string): Map<string, CompiledPatte
 /**
  * Get pattern metadata (version, update date)
  */
-export function getPatternMetadata(patternsFile: string = DEFAULT_PATTERNS_FILE): { version: string; updated: string } {
+export function getPatternMetadata(
+  patternsFile: string = DEFAULT_PATTERNS_FILE,
+): { version: string; updated: string } {
   try {
     const patterns = loadPatterns(patternsFile);
     return { version: patterns.version, updated: patterns.updated };
@@ -117,6 +131,8 @@ export function getPatternMetadata(patternsFile: string = DEFAULT_PATTERNS_FILE)
 /**
  * Check if patterns file exists
  */
-export function hasPatternsFile(patternsFile: string = DEFAULT_PATTERNS_FILE): boolean {
+export function hasPatternsFile(
+  patternsFile: string = DEFAULT_PATTERNS_FILE,
+): boolean {
   return existsSync(patternsFile);
 }

@@ -1,11 +1,17 @@
-import { Finding, SkillInfo, SkillManifest, AuditResult, GroupedAuditResult } from "./types.js";
+import {
+  Finding,
+  SkillInfo,
+  SkillManifest,
+  AuditResult,
+  GroupedAuditResult,
+} from "./types.js";
 
 const SEVERITY_SCORES: Record<string, number> = {
   critical: 5.0,
   high: 3.0,
   medium: 1.5,
   low: 0.5,
-  info: 0.1
+  info: 0.1,
 };
 
 const CATEGORY_WEIGHTS: Record<string, number> = {
@@ -14,11 +20,11 @@ const CATEGORY_WEIGHTS: Record<string, number> = {
   PI: 1.2,
   BM: 1.0,
   TM: 1.0,
-  PII: 2.5,      // NEW: PII detection - high weight
-  COMP: 1.0,     // NEW: Compliance - medium weight
-  SPEC: 0.5,    // Spec errors are less severe than security
-  PROV: 0.8,    // Provenance issues
-  INTEL: 1.0    // Intelligence findings
+  PII: 2.5, // NEW: PII detection - high weight
+  COMP: 1.0, // NEW: Compliance - medium weight
+  SPEC: 0.5, // Spec errors are less severe than security
+  PROV: 0.8, // Provenance issues
+  INTEL: 1.0, // Intelligence findings
 };
 
 export interface RiskScore {
@@ -39,9 +45,13 @@ export function groupSecurityFindings(findings: Finding[]): {
   complianceFindings: Finding[];
 } {
   return {
-    securityFindings: findings.filter(finding => finding.category !== "PII" && finding.category !== "COMP"),
-    piiFindings: findings.filter(finding => finding.category === "PII"),
-    complianceFindings: findings.filter(finding => finding.category === "COMP"),
+    securityFindings: findings.filter(
+      (finding) => finding.category !== "PII" && finding.category !== "COMP",
+    ),
+    piiFindings: findings.filter((finding) => finding.category === "PII"),
+    complianceFindings: findings.filter(
+      (finding) => finding.category === "COMP",
+    ),
   };
 }
 
@@ -49,40 +59,44 @@ export function calculateRiskScore(findings: Finding[]): RiskScore {
   const breakdown = { critical: 0, high: 0, medium: 0, low: 0 };
   const categories: Record<string, number> = {};
   const asi: Record<string, number> = {};
-  
+
   for (const finding of findings) {
     const severityScore = SEVERITY_SCORES[finding.severity] || 1.0;
     const categoryWeight = CATEGORY_WEIGHTS[finding.category] || 1.0;
-    
+
     if (finding.severity in breakdown) {
       breakdown[finding.severity as keyof typeof breakdown]++;
     }
-    
+
     categories[finding.category] = (categories[finding.category] || 0) + 1;
-    
+
     if (finding.asi) {
       asi[finding.asi] = (asi[finding.asi] || 0) + 1;
     }
   }
-  
+
   let total = 0;
   for (const finding of findings) {
     const severityScore = SEVERITY_SCORES[finding.severity] || 1.0;
     const categoryWeight = CATEGORY_WEIGHTS[finding.category] || 1.0;
     total += severityScore * categoryWeight;
   }
-  
+
   total = Math.min(total, 10.0);
-  
+
   return {
     total: Math.round(total * 10) / 10,
     breakdown,
     categories,
-    asi
+    asi,
   };
 }
 
-export function getRiskLevel(score: number): { label: string; icon: string; color: string } {
+export function getRiskLevel(score: number): {
+  label: string;
+  icon: string;
+  color: string;
+} {
   if (score === 0) {
     return { label: "Safe", icon: "✅", color: "green" };
   } else if (score <= 3.0) {
@@ -105,7 +119,7 @@ export function getOWASPDescription(asi: string): string {
     ASI07: "Insecure Agent Output Handling",
     ASI08: "Insufficient Human Oversight",
     ASI09: "Trust Boundary Violation",
-    ASI10: "Agent Model Denial of Service"
+    ASI10: "Agent Model Denial of Service",
   };
   return descriptions[asi] || asi;
 }
@@ -114,24 +128,28 @@ export function createAuditResult(
   skill: SkillInfo,
   manifest: SkillManifest | undefined,
   findings: Finding[],
-  depFindings: Finding[]
+  depFindings: Finding[],
 ): AuditResult {
   const allFindings = [...findings, ...depFindings];
   const riskScore = calculateRiskScore(allFindings);
   const riskLevelInfo = getRiskLevel(riskScore.total);
-  
+
   // Map label to enum value
-  const riskLevel: "safe" | "risky" | "dangerous" | "malicious" = 
-    riskLevelInfo.label === "Safe" ? "safe" :
-    riskLevelInfo.label === "Risky" ? "risky" :
-    riskLevelInfo.label === "Dangerous" ? "dangerous" : "malicious";
-  
+  const riskLevel: "safe" | "risky" | "dangerous" | "malicious" =
+    riskLevelInfo.label === "Safe"
+      ? "safe"
+      : riskLevelInfo.label === "Risky"
+        ? "risky"
+        : riskLevelInfo.label === "Dangerous"
+          ? "dangerous"
+          : "malicious";
+
   return {
     skill,
     manifest,
     findings: allFindings,
     riskScore: riskScore.total,
-    riskLevel
+    riskLevel,
   };
 }
 
@@ -146,7 +164,7 @@ export function createGroupedAuditResult(
   securityFindings: Finding[],
   piiFindings: Finding[],
   complianceFindings: Finding[],
-  intelFindings: Finding[]
+  intelFindings: Finding[],
 ): GroupedAuditResult {
   // Spec findings get lower weight than security-critical findings
   const specScore = calculateRiskScore(specFindings);
@@ -156,18 +174,28 @@ export function createGroupedAuditResult(
   const intelScore = calculateRiskScore(intelFindings);
 
   // Combined score with weights
-  const totalScore = specScore.total * 0.2 + securityScore.total * 0.35 + piiScore.total * 0.25 + complianceScore.total * 0.1 + intelScore.total * 0.1;
+  const totalScore =
+    specScore.total * 0.2 +
+    securityScore.total * 0.35 +
+    piiScore.total * 0.25 +
+    complianceScore.total * 0.1 +
+    intelScore.total * 0.1;
   const finalScore = Math.min(totalScore, 10.0);
   const riskLevelInfo = getRiskLevel(finalScore);
 
   const riskLevel: "safe" | "risky" | "dangerous" | "malicious" =
-    riskLevelInfo.label === "Safe" ? "safe" :
-    riskLevelInfo.label === "Risky" ? "risky" :
-    riskLevelInfo.label === "Dangerous" ? "dangerous" : "malicious";
+    riskLevelInfo.label === "Safe"
+      ? "safe"
+      : riskLevelInfo.label === "Risky"
+        ? "risky"
+        : riskLevelInfo.label === "Dangerous"
+          ? "dangerous"
+          : "malicious";
 
   // Calculate compliance score (percentage)
   const complianceTotal = complianceFindings.length;
-  const compliancePassed = complianceTotal === 0 ? 100 : Math.max(0, 100 - complianceTotal * 10);
+  const compliancePassed =
+    complianceTotal === 0 ? 100 : Math.max(0, 100 - complianceTotal * 10);
 
   return {
     skill,
@@ -180,7 +208,14 @@ export function createGroupedAuditResult(
     riskScore: Math.round(finalScore * 10) / 10,
     riskLevel,
     complianceScore: compliancePassed,
-    complianceRiskLevel: compliancePassed >= 80 ? 'minimal' : compliancePassed >= 60 ? 'limited' : compliancePassed >= 40 ? 'high' : 'unacceptable'
+    complianceRiskLevel:
+      compliancePassed >= 80
+        ? "minimal"
+        : compliancePassed >= 60
+          ? "limited"
+          : compliancePassed >= 40
+            ? "high"
+            : "unacceptable",
   };
 }
 
@@ -188,12 +223,16 @@ export function createGroupedAuditResult(
  * Check if spec errors should block (critical or high severity)
  */
 export function hasBlockingSpecErrors(findings: Finding[]): boolean {
-  return findings.some(f => f.severity === "critical" && f.category === "SPEC");
+  return findings.some(
+    (f) => f.severity === "critical" && f.category === "SPEC",
+  );
 }
 
 /**
  * Check if security findings should block (high or critical severity)
  */
 export function hasBlockingSecurityFindings(findings: Finding[]): boolean {
-  return findings.some(f => f.severity === "critical" || f.severity === "high");
+  return findings.some(
+    (f) => f.severity === "critical" || f.severity === "high",
+  );
 }

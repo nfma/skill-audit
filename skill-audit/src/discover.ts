@@ -1,4 +1,11 @@
-import { existsSync, readdirSync, statSync, lstatSync, realpathSync, readFileSync } from "fs";
+import {
+  existsSync,
+  readdirSync,
+  statSync,
+  lstatSync,
+  realpathSync,
+  readFileSync,
+} from "fs";
 import { isAbsolute, join, relative, resolve, sep } from "path";
 import { execFileSync } from "child_process";
 import { SkillInfo } from "./types.js";
@@ -29,7 +36,7 @@ export function getConfigPath(): string {
  */
 export function getGlobalConfig(): SkillAuditConfig {
   const configPath = getConfigPath();
-  
+
   if (!existsSync(configPath)) {
     return {};
   }
@@ -42,14 +49,20 @@ export function getGlobalConfig(): SkillAuditConfig {
   }
 }
 
-const AUDITOR_EXCLUDED_DIRECTORIES = new Set([".git", ".hg", ".svn", "node_modules"]);
+const AUDITOR_EXCLUDED_DIRECTORIES = new Set([
+  ".git",
+  ".hg",
+  ".svn",
+  "node_modules",
+]);
 
 export function isWithinRoot(root: string, candidate: string): boolean {
   const relativePath = relative(root, candidate);
-  return relativePath === "" || (
-    relativePath !== ".."
-    && !relativePath.startsWith(`..${sep}`)
-    && !isAbsolute(relativePath)
+  return (
+    relativePath === "" ||
+    (relativePath !== ".." &&
+      !relativePath.startsWith(`..${sep}`) &&
+      !isAbsolute(relativePath))
   );
 }
 
@@ -106,7 +119,7 @@ export function getSkillFiles(skillPath: string, basePath?: string): string[] {
 
       for (const entry of entries) {
         const fullPath = join(realDir, entry);
-        
+
         // Use lstat to detect symlinks without following them
         const lstat = lstatSync(fullPath);
 
@@ -150,19 +163,22 @@ export function getSkillFiles(skillPath: string, basePath?: string): string[] {
   return files;
 }
 
-export async function discoverSkills(scope: "global" | "project" = "global"): Promise<SkillInfo[]> {
+export async function discoverSkills(
+  scope: "global" | "project" = "global",
+): Promise<SkillInfo[]> {
   const skills: SkillInfo[] = [];
 
   try {
     // Use execFileSync with argv array to prevent command injection
-    const args = scope === "global" 
-      ? ["skills", "list", "-g", "--json"]
-      : ["skills", "list", "--json"];
-    
-    const output = execFileSync("npx", args, { 
-      encoding: "utf-8", 
+    const args =
+      scope === "global"
+        ? ["skills", "list", "-g", "--json"]
+        : ["skills", "list", "--json"];
+
+    const output = execFileSync("npx", args, {
+      encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      timeout: 30000
+      timeout: 30000,
     });
 
     const data = JSON.parse(output);
@@ -193,7 +209,7 @@ export async function discoverSkills(scope: "global" | "project" = "global"): Pr
             name: skillData.name,
             path: safePath,
             agents: skillData.agents || [],
-            scope: skillData.scope || "unknown"
+            scope: skillData.scope || "unknown",
           });
         }
       }

@@ -6,10 +6,10 @@ import { SkillManifest, Finding } from "./types.js";
 
 /**
  * Phase 1 - Layer 1: Spec Validator
- * 
+ *
  * Validates skills against the Agent Skills specification.
  * This runs BEFORE security checks - spec errors block publication.
- * 
+ *
  * Agent Skills spec rules:
  * - SKILL.md must exist
  * - frontmatter must parse
@@ -29,7 +29,10 @@ export interface SpecValidationResult {
 /**
  * Validate a skill directory against Agent Skills specification
  */
-export function validateSkillSpec(skillPath: string, dirName: string): SpecValidationResult {
+export function validateSkillSpec(
+  skillPath: string,
+  dirName: string,
+): SpecValidationResult {
   const findings: Finding[] = [];
   let manifest: SkillManifest | undefined;
 
@@ -39,7 +42,9 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
 
   try {
     const resolvedSkillRoot = realpathSync(skillPath);
-    const resolvedSkillMdPath = realpathSync(join(resolvedSkillRoot, "SKILL.md"));
+    const resolvedSkillMdPath = realpathSync(
+      join(resolvedSkillRoot, "SKILL.md"),
+    );
 
     if (!isWithinRoot(resolvedSkillRoot, resolvedSkillMdPath)) {
       findings.push({
@@ -49,7 +54,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
         severity: "critical",
         file: skillMdPath,
         message: "SKILL.md resolves outside the skill directory",
-        evidence: resolvedSkillMdPath
+        evidence: resolvedSkillMdPath,
       });
       return { valid: false, findings };
     }
@@ -64,7 +69,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       severity: "critical",
       file: skillPath,
       message: "SKILL.md is required but not found",
-      evidence: skillMdPath
+      evidence: skillMdPath,
     });
     return { valid: false, findings };
   }
@@ -81,7 +86,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       severity: "critical",
       file: skillMdPath,
       message: "Failed to parse SKILL.md frontmatter",
-      evidence: String(e).slice(0, 100)
+      evidence: String(e).slice(0, 100),
     });
     return { valid: false, findings };
   }
@@ -89,14 +94,14 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
   manifest = {
     name: parsed.data.name || "",
     description: parsed.data.description || "",
-    origin: parsed.data.origin,  // Custom metadata (not spec-required)
+    origin: parsed.data.origin, // Custom metadata (not spec-required)
     license: parsed.data.license,
     compatibility: parsed.data.compatibility,
     metadata: parsed.data.metadata,
     allowedTools: parsed.data["allowed-tools"],
     context: parsed.data.context,
     content: parsed.content,
-    files: []
+    files: [],
   };
 
   // SPEC-03: Validate required 'name' field
@@ -107,7 +112,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "critical",
       file: skillMdPath,
-      message: "Frontmatter missing required 'name' field"
+      message: "Frontmatter missing required 'name' field",
     });
   } else {
     // SPEC-04: name length check (<=64 chars)
@@ -118,7 +123,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
         asi: "SPEC",
         severity: "high",
         file: skillMdPath,
-        message: `name exceeds 64 char limit (${manifest.name.length} chars)`
+        message: `name exceeds 64 char limit (${manifest.name.length} chars)`,
       });
     }
 
@@ -130,31 +135,32 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
         asi: "SPEC",
         severity: "high",
         file: skillMdPath,
-        message: "name must only contain lowercase letters, numbers, and hyphens"
+        message:
+          "name must only contain lowercase letters, numbers, and hyphens",
       });
     }
 
     // SPEC-06: no leading/trailing hyphen
-    if (manifest.name.startsWith('-') || manifest.name.endsWith('-')) {
+    if (manifest.name.startsWith("-") || manifest.name.endsWith("-")) {
       findings.push({
         id: "SPEC-06",
         category: "SPEC",
         asi: "SPEC",
         severity: "high",
         file: skillMdPath,
-        message: "name cannot start or end with a hyphen"
+        message: "name cannot start or end with a hyphen",
       });
     }
 
     // SPEC-07: no consecutive hyphens
-    if (manifest.name.includes('--')) {
+    if (manifest.name.includes("--")) {
       findings.push({
         id: "SPEC-07",
         category: "SPEC",
         asi: "SPEC",
         severity: "high",
         file: skillMdPath,
-        message: "name cannot contain consecutive hyphens"
+        message: "name cannot contain consecutive hyphens",
       });
     }
 
@@ -166,7 +172,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
         asi: "SPEC",
         severity: "high",
         file: skillMdPath,
-        message: `name '${manifest.name}' must match directory '${dirName}'`
+        message: `name '${manifest.name}' must match directory '${dirName}'`,
       });
     }
   }
@@ -179,7 +185,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "critical",
       file: skillMdPath,
-      message: "Frontmatter missing required 'description' field"
+      message: "Frontmatter missing required 'description' field",
     });
   } else if (manifest.description.length > 1024) {
     findings.push({
@@ -188,7 +194,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "high",
       file: skillMdPath,
-      message: `description exceeds 1024 char limit (${manifest.description.length} chars)`
+      message: `description exceeds 1024 char limit (${manifest.description.length} chars)`,
     });
   }
 
@@ -200,7 +206,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "medium",
       file: skillMdPath,
-      message: "license must be a string"
+      message: "license must be a string",
     });
   }
 
@@ -212,7 +218,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "medium",
       file: skillMdPath,
-      message: "compatibility field exceeds 500 char limit"
+      message: "compatibility field exceeds 500 char limit",
     });
   }
 
@@ -222,7 +228,7 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
   }
 
   // SPEC-14: SKILL.md length budget check
-  const lineCount = skillMdContent.split('\n').length;
+  const lineCount = skillMdContent.split("\n").length;
   if (lineCount > 500) {
     findings.push({
       id: "SPEC-13",
@@ -230,19 +236,22 @@ export function validateSkillSpec(skillPath: string, dirName: string): SpecValid
       asi: "SPEC",
       severity: "info",
       file: skillMdPath,
-      message: `SKILL.md has ${lineCount} lines - consider progressive disclosure (typical max ~500)`
+      message: `SKILL.md has ${lineCount} lines - consider progressive disclosure (typical max ~500)`,
     });
   }
 
   // SPEC-15: Directory structure sanity check
   findings.push(...validateDirectoryStructure(skillPath));
 
-  const valid = !findings.some(f => f.severity === "critical");
+  const valid = !findings.some((f) => f.severity === "critical");
 
   return { valid, manifest, findings };
 }
 
-function validateAllowedTools(allowedTools: unknown, filePath: string): Finding[] {
+function validateAllowedTools(
+  allowedTools: unknown,
+  filePath: string,
+): Finding[] {
   const findings: Finding[] = [];
 
   if (Array.isArray(allowedTools)) {
@@ -254,7 +263,7 @@ function validateAllowedTools(allowedTools: unknown, filePath: string): Finding[
           asi: "SPEC",
           severity: "medium",
           file: filePath,
-          message: `allowed-tools contains non-string/object: ${typeof tool}`
+          message: `allowed-tools contains non-string/object: ${typeof tool}`,
         });
       }
     }
@@ -265,7 +274,7 @@ function validateAllowedTools(allowedTools: unknown, filePath: string): Finding[
       asi: "SPEC",
       severity: "medium",
       file: filePath,
-      message: "allowed-tools should be an array or undefined"
+      message: "allowed-tools should be an array or undefined",
     });
   }
 
@@ -300,13 +309,13 @@ function validateDirectoryStructure(skillPath: string): Finding[] {
       severity: "low",
       file: skillPath,
       message: "Could not read skill directory structure",
-      evidence: String(e).slice(0, 100)
+      evidence: String(e).slice(0, 100),
     });
     return findings;
   }
 
   // Warn if no recognized directories (not critical, just informational)
-  const hasAnyDir = recommendedDirs.some(d => foundDirs.includes(d));
+  const hasAnyDir = recommendedDirs.some((d) => foundDirs.includes(d));
   if (foundDirs.length > 0 && !hasAnyDir) {
     findings.push({
       id: "SPEC-17",
@@ -314,7 +323,7 @@ function validateDirectoryStructure(skillPath: string): Finding[] {
       asi: "SPEC",
       severity: "info",
       file: skillPath,
-      message: `Found directories: ${foundDirs.join(', ')} - consider scripts/, references/, assets/ for organization`
+      message: `Found directories: ${foundDirs.join(", ")} - consider scripts/, references/, assets/ for organization`,
     });
   }
 
@@ -324,10 +333,13 @@ function validateDirectoryStructure(skillPath: string): Finding[] {
 /**
  * Quick spec validation (for use in lint mode - less strict)
  */
-export function quickValidate(skillPath: string, dirName: string): { valid: boolean; errors: string[] } {
+export function quickValidate(
+  skillPath: string,
+  dirName: string,
+): { valid: boolean; errors: string[] } {
   const { valid, findings } = validateSkillSpec(skillPath, dirName);
   const errors = findings
-    .filter(f => f.severity === "critical" || f.severity === "high")
-    .map(f => `[${f.id}] ${f.message}`);
+    .filter((f) => f.severity === "critical" || f.severity === "high")
+    .map((f) => `[${f.id}] ${f.message}`);
   return { valid, errors };
 }

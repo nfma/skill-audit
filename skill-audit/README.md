@@ -304,6 +304,7 @@ Context checks include:
 |------|-------------|---------|
 | `-g, --global` | Audit global skills | ✓ |
 | `-p, --project` | Audit project-level skills | |
+| `--path <paths...>` | Audit explicit skill directories instead of discovery | |
 | `-a, --agent <agents...>` | Filter by agent names | |
 | `-x, --exclude-skill <names...>` | Exclude skills by name | |
 | `--mode <mode>` | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env` | audit |

@@ -2,42 +2,42 @@ import { AuditResult, Finding, FindingCategory } from "./types.js";
 import { ComplianceReport } from "./compliance.js";
 
 const LEVEL_ICONS: Record<string, string> = {
-  "safe": "✅",
-  "risky": "⚠️",
-  "dangerous": "🔴",
-  "malicious": "☠️",
+  safe: "✅",
+  risky: "⚠️",
+  dangerous: "🔴",
+  malicious: "☠️",
 };
 
 const COMPLIANCE_ICONS: Record<string, string> = {
-  "minimal": "✅",
-  "limited": "⚠️",
-  "high": "🔴",
-  "unacceptable": "☠️",
+  minimal: "✅",
+  limited: "⚠️",
+  high: "🔴",
+  unacceptable: "☠️",
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  "critical": "\x1b[31m",
-  "high": "\x1b[33m",
-  "medium": "\x1b[35m",
-  "low": "\x1b[36m",
-  "info": "\x1b[90m",
+  critical: "\x1b[31m",
+  high: "\x1b[33m",
+  medium: "\x1b[35m",
+  low: "\x1b[36m",
+  info: "\x1b[90m",
 };
 
 const CATEGORY_COLORS: Record<FindingCategory, string> = {
-  "PI": "\x1b[31m",   // Prompt Injection - Red
-  "BM": "\x1b[33m",   // Behavioral - Yellow
-  "SC": "\x1b[35m",   // Secrets - Magenta
-  "CE": "\x1b[31m",   // Code Execution - Red
-  "TM": "\x1b[33m",   // Tool Misuse - Yellow
-  "PII": "\x1b[36m",  // PII - Cyan (NEW)
-  "COMP": "\x1b[34m", // Compliance - Blue (NEW)
-  "MC": "\x1b[31m",   // Malicious Content - Red
-  "HT": "\x1b[31m",   // Harmful Techniques - Red
-  "RA": "\x1b[33m",   // Resource Abuse - Yellow
-  "SPEC": "\x1b[90m", // Specification - Gray
-  "PROV": "\x1b[33m", // Provenance - Yellow
-  "INTEL": "\x1b[90m", // Intelligence - Gray
-  "ENV": "\x1b[35m",  // Agent environment - Magenta
+  PI: "\x1b[31m", // Prompt Injection - Red
+  BM: "\x1b[33m", // Behavioral - Yellow
+  SC: "\x1b[35m", // Secrets - Magenta
+  CE: "\x1b[31m", // Code Execution - Red
+  TM: "\x1b[33m", // Tool Misuse - Yellow
+  PII: "\x1b[36m", // PII - Cyan (NEW)
+  COMP: "\x1b[34m", // Compliance - Blue (NEW)
+  MC: "\x1b[31m", // Malicious Content - Red
+  HT: "\x1b[31m", // Harmful Techniques - Red
+  RA: "\x1b[33m", // Resource Abuse - Yellow
+  SPEC: "\x1b[90m", // Specification - Gray
+  PROV: "\x1b[33m", // Provenance - Yellow
+  INTEL: "\x1b[90m", // Intelligence - Gray
+  ENV: "\x1b[35m", // Agent environment - Magenta
 };
 
 const RESET = "\x1b[0m";
@@ -54,25 +54,31 @@ function categorizeFindings(findings: Finding[]): {
   compliance: Finding[];
 } {
   return {
-    security: findings.filter(f => !['PII', 'COMP'].includes(f.category)),
-    pii: findings.filter(f => f.category === 'PII'),
-    compliance: findings.filter(f => f.category === 'COMP'),
+    security: findings.filter((f) => !["PII", "COMP"].includes(f.category)),
+    pii: findings.filter((f) => f.category === "PII"),
+    compliance: findings.filter((f) => f.category === "COMP"),
   };
 }
 
 // NEW: Format compliance report
 function formatComplianceReport(reports: ComplianceReport[]): string {
   const lines: string[] = [];
-  
+
   for (const report of reports) {
     const icon = COMPLIANCE_ICONS[report.riskLevel] || "❓";
-    lines.push(`      ${icon} ${report.framework}: ${report.score}% (${report.passed}/${report.total} passed)`);
+    lines.push(
+      `      ${icon} ${report.framework}: ${report.score}% (${report.passed}/${report.total} passed)`,
+    );
   }
-  
+
   return lines.join("\n");
 }
 
-export function reportResults(results: AuditResult[], options: any, complianceReports?: Map<string, ComplianceReport[]>): void {
+export function reportResults(
+  results: AuditResult[],
+  options: any,
+  complianceReports?: Map<string, ComplianceReport[]>,
+): void {
   const byAgent = new Map<string, AuditResult[]>();
   for (const result of results) {
     for (const agent of result.skill.agents) {
@@ -87,19 +93,26 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
   }
 
   const uniqueResults = Array.from(uniqueSkills.values());
-  const thresholdFailures = options.threshold === undefined
-    ? []
-    : uniqueResults.filter(result => result.riskScore >= options.threshold);
-  const severityFailures = uniqueResults.filter(result =>
-    result.findings.some(finding => finding.severity === "critical" || finding.severity === "high")
+  const thresholdFailures =
+    options.threshold === undefined
+      ? []
+      : uniqueResults.filter((result) => result.riskScore >= options.threshold);
+  const severityFailures = uniqueResults.filter((result) =>
+    result.findings.some(
+      (finding) =>
+        finding.severity === "critical" || finding.severity === "high",
+    ),
   );
-  const shouldBlock = (options.block === true || options.threshold !== undefined)
-    && new Set([...thresholdFailures, ...severityFailures]).size > 0;
+  const shouldBlock =
+    (options.block === true || options.threshold !== undefined) &&
+    new Set([...thresholdFailures, ...severityFailures]).size > 0;
 
   if (options.json) {
     const output = {
       skills: results,
-      compliance: complianceReports ? Object.fromEntries(complianceReports) : undefined,
+      compliance: complianceReports
+        ? Object.fromEntries(complianceReports)
+        : undefined,
     };
     console.log(JSON.stringify(output, null, 2));
     if (shouldBlock) process.exitCode = 1;
@@ -109,22 +122,48 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
   console.log("\n🔍 Auditing installed skills...\n");
   console.log("Total: " + uniqueResults.length + " skills scanned");
 
-  const safe = uniqueResults.filter(r => r.riskLevel === "safe").length;
-  const risky = uniqueResults.filter(r => r.riskLevel === "risky").length;
-  const dangerous = uniqueResults.filter(r => r.riskLevel === "dangerous").length;
-  const malicious = uniqueResults.filter(r => r.riskLevel === "malicious").length;
+  const safe = uniqueResults.filter((r) => r.riskLevel === "safe").length;
+  const risky = uniqueResults.filter((r) => r.riskLevel === "risky").length;
+  const dangerous = uniqueResults.filter(
+    (r) => r.riskLevel === "dangerous",
+  ).length;
+  const malicious = uniqueResults.filter(
+    (r) => r.riskLevel === "malicious",
+  ).length;
 
-  console.log("✅ Safe: " + safe + " | ⚠️ Risky: " + risky + " | 🔴 Dangerous: " + dangerous + " | ☠️ Malicious: " + malicious + "\n");
+  console.log(
+    "✅ Safe: " +
+      safe +
+      " | ⚠️ Risky: " +
+      risky +
+      " | 🔴 Dangerous: " +
+      dangerous +
+      " | ☠️ Malicious: " +
+      malicious +
+      "\n",
+  );
 
   // NEW: Count PII and compliance findings
-  const piiFindings = uniqueResults.flatMap(r => r.findings.filter(f => f.category === 'PII'));
-  const complianceFindings = uniqueResults.flatMap(r => r.findings.filter(f => f.category === 'COMP'));
-  
+  const piiFindings = uniqueResults.flatMap((r) =>
+    r.findings.filter((f) => f.category === "PII"),
+  );
+  const complianceFindings = uniqueResults.flatMap((r) =>
+    r.findings.filter((f) => f.category === "COMP"),
+  );
+
   if (piiFindings.length > 0) {
-    console.log("🔐 PII Findings: " + piiFindings.length + " potential PII exposures detected");
+    console.log(
+      "🔐 PII Findings: " +
+        piiFindings.length +
+        " potential PII exposures detected",
+    );
   }
   if (complianceFindings.length > 0) {
-    console.log("📋 Compliance Findings: " + complianceFindings.length + " compliance issues detected");
+    console.log(
+      "📋 Compliance Findings: " +
+        complianceFindings.length +
+        " compliance issues detected",
+    );
   }
   console.log("");
 
@@ -140,44 +179,85 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
       const icon = LEVEL_ICONS[result.riskLevel];
       const score = result.riskScore.toFixed(1);
 
-      console.log("  " + icon + " " + padEnd(result.skill.name, 40) + " " + score);
+      console.log(
+        "  " + icon + " " + padEnd(result.skill.name, 40) + " " + score,
+      );
 
       if (options.verbose && result.findings.length > 0) {
         const categorized = categorizeFindings(result.findings);
-        
+
         // Security findings
         if (categorized.security.length > 0) {
           for (const f of categorized.security.slice(0, 3)) {
             const color = SEVERITY_COLORS[f.severity] || "";
             const catColor = CATEGORY_COLORS[f.category] || "";
-            console.log("      " + color + f.severity.toUpperCase() + RESET + ": " + catColor + "[" + f.category + "]" + RESET + " " + f.message);
+            console.log(
+              "      " +
+                color +
+                f.severity.toUpperCase() +
+                RESET +
+                ": " +
+                catColor +
+                "[" +
+                f.category +
+                "]" +
+                RESET +
+                " " +
+                f.message,
+            );
           }
           if (categorized.security.length > 3) {
-            console.log("      ... and " + (categorized.security.length - 3) + " more security findings");
+            console.log(
+              "      ... and " +
+                (categorized.security.length - 3) +
+                " more security findings",
+            );
           }
         }
-        
+
         // PII findings (NEW)
         if (categorized.pii.length > 0) {
           console.log("      🔐 PII Detection:");
           for (const f of categorized.pii.slice(0, 3)) {
             const color = SEVERITY_COLORS[f.severity] || "";
-            console.log("        " + color + f.severity.toUpperCase() + RESET + ": " + f.message);
+            console.log(
+              "        " +
+                color +
+                f.severity.toUpperCase() +
+                RESET +
+                ": " +
+                f.message,
+            );
           }
           if (categorized.pii.length > 3) {
-            console.log("        ... and " + (categorized.pii.length - 3) + " more PII findings");
+            console.log(
+              "        ... and " +
+                (categorized.pii.length - 3) +
+                " more PII findings",
+            );
           }
         }
-        
+
         // Compliance findings (NEW)
         if (categorized.compliance.length > 0) {
           console.log("      📋 Compliance:");
           for (const f of categorized.compliance.slice(0, 3)) {
             const color = SEVERITY_COLORS[f.severity] || "";
-            console.log("        " + color + f.severity.toUpperCase() + RESET + ": " + f.message);
+            console.log(
+              "        " +
+                color +
+                f.severity.toUpperCase() +
+                RESET +
+                ": " +
+                f.message,
+            );
           }
           if (categorized.compliance.length > 3) {
-            console.log("        ... and " + (categorized.compliance.length - 3) + " more compliance issues");
+            console.log(
+              "        ... and " +
+                (categorized.compliance.length - 3) +
+                " more compliance issues",
+            );
           }
         }
       }
@@ -189,29 +269,47 @@ export function reportResults(results: AuditResult[], options: any, complianceRe
   if (complianceReports && complianceReports.size > 0) {
     console.log("📋 Compliance Summary:");
     for (const [skillName, reports] of complianceReports) {
-      const avgScore = Math.round(reports.reduce((sum, r) => sum + r.score, 0) / reports.length);
+      const avgScore = Math.round(
+        reports.reduce((sum, r) => sum + r.score, 0) / reports.length,
+      );
       const worstRisk = reports.reduce((worst, r) => {
-        const levels = ['minimal', 'limited', 'high', 'unacceptable'];
-        return levels.indexOf(r.riskLevel) > levels.indexOf(worst) ? r.riskLevel : worst;
-      }, 'minimal');
-      
+        const levels = ["minimal", "limited", "high", "unacceptable"];
+        return levels.indexOf(r.riskLevel) > levels.indexOf(worst)
+          ? r.riskLevel
+          : worst;
+      }, "minimal");
+
       const icon = COMPLIANCE_ICONS[worstRisk];
-      console.log("  " + icon + " " + padEnd(skillName, 40) + " " + avgScore + "%");
+      console.log(
+        "  " + icon + " " + padEnd(skillName, 40) + " " + avgScore + "%",
+      );
     }
     console.log("");
   }
 
   if (options.threshold !== undefined) {
     if (thresholdFailures.length > 0) {
-      console.log("❌ " + thresholdFailures.length + " skills meet or exceed threshold (" + options.threshold + ")");
+      console.log(
+        "❌ " +
+          thresholdFailures.length +
+          " skills meet or exceed threshold (" +
+          options.threshold +
+          ")",
+      );
     } else {
       console.log("✅ All skills within acceptable risk threshold");
     }
   }
 
-  const severityOnlyFailures = severityFailures.filter(result => !thresholdFailures.includes(result));
+  const severityOnlyFailures = severityFailures.filter(
+    (result) => !thresholdFailures.includes(result),
+  );
   if (options.block === true && severityOnlyFailures.length > 0) {
-    console.log("❌ " + severityOnlyFailures.length + " skills contain high or critical findings");
+    console.log(
+      "❌ " +
+        severityOnlyFailures.length +
+        " skills contain high or critical findings",
+    );
   }
 
   if (shouldBlock) process.exitCode = 1;

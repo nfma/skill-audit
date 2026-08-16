@@ -50,9 +50,24 @@ afterEach(() => {
 
 describe("blocking enforcement", () => {
   it("blocks high and critical findings independently of their weighted score", () => {
-    expect(shouldBlockResult(result({ riskScore: 2.6, findings: [finding("critical")] }), 3)).toBe(true);
-    expect(shouldBlockResult(result({ riskScore: 1.1, findings: [finding("high")] }), 3)).toBe(true);
-    expect(shouldBlockResult(result({ riskScore: 2.9, findings: [finding("medium")] }), 3)).toBe(false);
+    expect(
+      shouldBlockResult(
+        result({ riskScore: 2.6, findings: [finding("critical")] }),
+        3,
+      ),
+    ).toBe(true);
+    expect(
+      shouldBlockResult(
+        result({ riskScore: 1.1, findings: [finding("high")] }),
+        3,
+      ),
+    ).toBe(true);
+    expect(
+      shouldBlockResult(
+        result({ riskScore: 2.9, findings: [finding("medium")] }),
+        3,
+      ),
+    ).toBe(false);
   });
 
   it("treats a score equal to the threshold as blocking", () => {
@@ -62,8 +77,18 @@ describe("blocking enforcement", () => {
   it("uses the weighted threshold instead of severity alone for compliance findings", () => {
     const complianceFinding = finding("high", "COMP");
 
-    expect(shouldBlockResult(result({ riskScore: 1, complianceFindings: [complianceFinding] }), 3)).toBe(false);
-    expect(shouldBlockResult(result({ riskScore: 1, complianceFindings: [complianceFinding] }), 1)).toBe(true);
+    expect(
+      shouldBlockResult(
+        result({ riskScore: 1, complianceFindings: [complianceFinding] }),
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      shouldBlockResult(
+        result({ riskScore: 1, complianceFindings: [complianceFinding] }),
+        1,
+      ),
+    ).toBe(true);
   });
 
   it("preserves blocking for JSON output", () => {
@@ -83,13 +108,22 @@ describe("blocking enforcement", () => {
     const output = join(root, "report.json");
 
     const blocked = reportGroupedResults(
-      [result({
-        riskScore: 1.1,
-        findings: [finding("high")],
-        piiFindings: [finding("medium", "PII", "PII-001")],
-        intelFindings: [finding("medium", "INTEL", "INTEL-001")],
-      })],
-      { json: true, output, verbose: false, threshold: 3, mode: "audit", block: true },
+      [
+        result({
+          riskScore: 1.1,
+          findings: [finding("high")],
+          piiFindings: [finding("medium", "PII", "PII-001")],
+          intelFindings: [finding("medium", "INTEL", "INTEL-001")],
+        }),
+      ],
+      {
+        json: true,
+        output,
+        verbose: false,
+        threshold: 3,
+        mode: "audit",
+        block: true,
+      },
     );
 
     const report = JSON.parse(readFileSync(output, "utf8"));
@@ -97,7 +131,10 @@ describe("blocking enforcement", () => {
     expect(report.summary.blocked).toBe(1);
     expect(report.summary.piiIssues).toBe(1);
     expect(report.summary.intelIssues).toBe(1);
-    expect(report.results[0].securityFindings[0]).toHaveProperty("asi", "ASI05");
+    expect(report.results[0].securityFindings[0]).toHaveProperty(
+      "asi",
+      "ASI05",
+    );
     expect(report.results[0].securityFindings[0]).not.toHaveProperty("asixx");
   });
 
