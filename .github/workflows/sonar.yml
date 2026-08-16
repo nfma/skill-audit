@@ -19,13 +19,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Classify pull request trust
+        id: trust
+        env:
+          UNTRUSTED_PULL_REQUEST: ${{ github.event_name == 'pull_request' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.head.repo.full_name != github.repository) }}
+        run: |
+          if [ "$UNTRUSTED_PULL_REQUEST" = "true" ]; then
+            echo "trusted=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping SonarQube Cloud analysis for a Dependabot or fork pull request."
+          else
+            echo "trusted=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out full history
+        if: steps.trust.outputs.trusted == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Node.js
+        if: steps.trust.outputs.trusted == 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
@@ -33,39 +47,37 @@ jobs:
           cache-dependency-path: skill-audit/package-lock.json
 
       - name: Install dependencies
+        if: steps.trust.outputs.trusted == 'true'
         working-directory: skill-audit
         run: npm ci --ignore-scripts
 
       - name: Type-check
+        if: steps.trust.outputs.trusted == 'true'
         working-directory: skill-audit
         run: npm run typecheck
 
       - name: Test with coverage
+        if: steps.trust.outputs.trusted == 'true'
         working-directory: skill-audit
         run: npm run test:coverage
 
       - name: Build
+        if: steps.trust.outputs.trusted == 'true'
         working-directory: skill-audit
         run: npm run build
 
       - name: Check for SonarQube Cloud token
-        id: token
+        if: steps.trust.outputs.trusted == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SECRETS_UNAVAILABLE: ${{ github.actor == 'dependabot[bot]' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
         run: |
-          if [ -n "$SONAR_TOKEN" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          elif [ "$SECRETS_UNAVAILABLE" = "true" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Skipping SonarQube Cloud analysis: Actions secrets are not available to this run."
-          else
+          if [ -z "$SONAR_TOKEN" ]; then
             echo "SONAR_TOKEN is required; add it as a repository Actions secret." >&2
             exit 1
           fi
 
       - name: Scan and wait for the quality gate
-        if: steps.token.outputs.available == 'true'
+        if: steps.trust.outputs.trusted == 'true'
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
