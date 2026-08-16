@@ -33,12 +33,14 @@ Security auditing CLI for AI agent skills.
 ## Quick Start
 
 ```bash
-# Clone this fork and build the CLI from source
-git clone https://github.com/nfma/skill-audit.git
-cd skill-audit/skill-audit
-npm ci --ignore-scripts
-npm run build
-npm link --ignore-scripts
+# Download and verify the immutable Node 24 release executable
+version=v0.10.0
+gh release download "$version" \
+  --repo nfma/skill-audit \
+  --pattern "skill-audit-$version.mjs" \
+  --pattern "skill-audit-$version.mjs.sha256"
+shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+install -m 0755 "skill-audit-$version.mjs" "$HOME/.local/bin/skill-audit"
 
 # Audit skills
 skill-audit -g              # Audit global skills
@@ -56,16 +58,29 @@ skill-audit diff-env        # Detect drift from baseline
 skill-audit --check-command "npx skills add owner/repo"
 ```
 
+## Release Integrity
+
+GitHub Releases include the executable, its checksum, and a descriptor. The
+descriptor's `embeddedRulesSha256` binds the decoded rule data rather than its
+base64 transport. To recompute it, encode canonical UTF-8 JSON with array order
+preserved and object keys sorted by UTF-8 bytes. Strings, booleans, and `null`
+use JSON encoding; finite numbers use the RFC 8785 shortest
+round-trippable IEEE 754 form, with negative zero encoded as `0`. Reject sparse
+arrays, non-finite numbers, unsupported values, and non-plain objects.
+
+The descriptor also binds normalized documentation digests. Verify both the
+asset checksum and GitHub attestation before accepting an upgrade.
+
 ## Security Categories
 
-| Category | OWASP | What It Detects |
-|----------|-------|-----------------|
+| Category         | OWASP | What It Detects                                      |
+| ---------------- | ----- | ---------------------------------------------------- |
 | Prompt Injection | ASI01 | Ignore instructions, role bypass, context forgetting |
-| Tool Misuse | ASI02 | Data exfiltration, unauthorized API calls |
-| PII Exposure | ASI03 | Hardcoded secrets, API keys, Vietnamese IDs |
-| Supply Chain | ASI04 | Vulnerable dependencies, credential leaks |
-| Code Execution | ASI05 | Shell injection, dangerous commands |
-| Behavioral | ASI09 | Manipulation attempts, blind trust requests |
+| Tool Misuse      | ASI02 | Data exfiltration, unauthorized API calls            |
+| PII Exposure     | ASI03 | Hardcoded secrets, API keys, Vietnamese IDs          |
+| Supply Chain     | ASI04 | Vulnerable dependencies, credential leaks            |
+| Code Execution   | ASI05 | Shell injection, dangerous commands                  |
+| Behavioral       | ASI09 | Manipulation attempts, blind trust requests          |
 
 Compliance checks are opt-in heuristics for Vietnam AI Law 2026, the EU AI Act, and GDPR. They identify documentation gaps but are not a legal determination.
 
@@ -84,7 +99,7 @@ Use `skill-audit trust env` and `skill-audit diff-env` to keep a compact trusted
 
 ## Session Context Contracts
 
-Executable skills should declare the narrow session facts they read, the preconditions required before invocation, what they write back after execution, and when user confirmation is needed. `skill-audit` reports `CTX-*` findings when executable skills lack these boundaries.
+Skills should declare the narrow session facts they read, the preconditions required before invocation, what they write back after execution, and when user confirmation is needed. `skill-audit` reports `CTX-*` findings when these boundaries are absent.
 
 ## Risk Scoring
 
@@ -93,12 +108,9 @@ Executable skills should declare the narrow session facts they read, the precond
 - **3.1-7.0**: Dangerous 🔴
 - **7.1+**: Malicious ☠️
 
-## Postinstall Safety
+## Package Lifecycle Safety
 
-This package includes a postinstall script for UX. It does NOT:
-- Auto-install hooks
-- Execute malicious code
-- Make network requests
-- Modify files without consent
-
-See `references/postinstall-safety.md` for full documentation on postinstall patterns.
+The GitHub Release `.mjs` executable has no package-install lifecycle. When
+auditing an npm package that declares lifecycle scripts, use
+`references/postinstall-safety.md` to distinguish documented informational
+behavior from unsafe automatic actions.

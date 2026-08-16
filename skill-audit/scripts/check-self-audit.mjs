@@ -8,7 +8,10 @@ import { parseBaselineArguments } from "./baseline-cli.mjs";
 
 const SCHEMA_VERSION = 2;
 const EXCLUDED_FINDING_DIRECTORIES = ["coverage/", "dist/"];
-const EXCLUDED_FINDING_FILES = new Set(["package-lock.json"]);
+const EXCLUDED_FINDING_FILES = new Set([
+  "package-lock.json",
+  "src/generated/release-data.ts",
+]);
 const FINDING_BUCKETS = [
   "specFindings",
   "securityFindings",

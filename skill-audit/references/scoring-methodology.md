@@ -105,13 +105,13 @@ Total: 0.6 + 2.0 + 2.5 = 5.1 (Dangerous)
 
 ```bash
 # Block only dangerous skills
-npx skill-audit -t 3.0
+skill-audit -t 3.0
 
 # Block risky skills too
-npx skill-audit -t 1.0
+skill-audit -t 1.0
 
 # Report only, no blocking
-npx skill-audit -t 10.0
+skill-audit -t 10.0
 ```
 
 ## Score Aggregation Rules

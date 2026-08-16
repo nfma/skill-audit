@@ -1,19 +1,25 @@
 {
   "name": "@hungpg/skill-audit",
-  "version": "0.9.0",
+  "version": "0.10.0",
+  "private": true,
   "description": "Security auditing CLI for AI agent skills with PII detection and optional compliance heuristics",
   "type": "module",
   "bin": {
-    "skill-audit": "dist/index.js"
+    "skill-audit": "dist/cli.js"
   },
   "scripts": {
+    "generate:release-data": "tsx scripts/generate-release-data.ts",
+    "prebuild": "npm run generate:release-data",
     "build": "node scripts/clean.cjs && npm run typecheck && tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "build:release": "tsx scripts/generate-release-data.ts --check && tsx scripts/build-release.ts",
+    "verify:release": "tsx scripts/verify-release.ts",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
     "format:check": "node scripts/check-format.mjs",
     "lint:js": "eslint src scripts --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
-    "security:update": "node dist/index.js --update-db",
+    "security:update": "node dist/cli.js --update-db",
+    "pretest": "tsx scripts/generate-release-data.ts --check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -22,7 +28,7 @@
     "typecheck:ts7": "node node_modules/typescript-7/bin/tsc --noEmit && node node_modules/typescript-7/bin/tsc --project tsconfig.test.json"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "files": [
     "dist",
@@ -74,6 +80,7 @@
     "@eslint/js": "10.0.1",
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "esbuild": "0.28.1",
     "eslint": "10.8.1",
     "eslint-plugin-security": "4.0.1",
     "globals": "17.11.0",

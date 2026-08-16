@@ -9,7 +9,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "PII written to file - potential data staging",
-      "evidenceSha256": "b1fb78873132977b64b27490ddf1fd060fd180546befd7f7bdb813cfac4f7a37",
+      "evidenceSha256": "efbd7ec8e307f6ccfa91e60943acd6b774ea44d347edeadbee77406db42923a8",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -23,7 +23,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "Vietnam CCCD exfiltration pattern",
-      "evidenceSha256": "b4ddc78e5c4077c9ad3a39be61556ec49fbce7e819b539115f304d04c8f04646",
+      "evidenceSha256": "4dbbd91fa954b1e890e885a19b92b1d258948f8ab18629253ce5cc57588f1534",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -37,7 +37,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "Vietnam Tax ID exfiltration pattern",
-      "evidenceSha256": "5b4b3299fe68805dce42fe40dd102dbf53bd16fa9319ebcfa9b14ed10b1fa060",
+      "evidenceSha256": "c467a42e706b4be908f5937fc867584635d51e23952b49fcaed7042f64ab77c3",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -205,7 +205,7 @@
       "severity": "medium",
       "file": "src/security.ts",
       "message": "Subprocess with shell=True",
-      "evidenceSha256": "b9c223ca40611681e511bb72c7021124f6b46b1db6eee4e81fdbc0ea9fb83574",
+      "evidenceSha256": "d81fdfd5ba23896dc0e44e3fa93425ced733aaf97f747e9cfcfac99d0fe080d1",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -233,7 +233,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "os.system() call - shell injection risk",
-      "evidenceSha256": "c9727f288d2d41e51a407cd23730bb7bb6de672d73ea180bd39bb6d7f5bba6fa",
+      "evidenceSha256": "1d4df855cbdf1f6a756a97df2e408e28880aef34243a6c11a22f348936cccc80",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -275,7 +275,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": ".env file reference (potential secret exposure)",
-      "evidenceSha256": "2045bf7da45206e41ec8457b5d8601dc7ca87d2d6772da7167d26b15fe9e5c03",
+      "evidenceSha256": "49e57a184e2477ba629ca3b071e762a7bb95fee6202143c852e36a98c344422e",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -373,7 +373,7 @@
       "severity": "critical",
       "file": "src/security.ts",
       "message": "File read + send exfiltration chain",
-      "evidenceSha256": "f064bb25c2c6c43167c356af2531ad0525b0023cc79476eed8bd8073a71bb596",
+      "evidenceSha256": "7680a79440c2da45a84f9700b60d2af0420ae07b5dfaa27d252a8170b19d2c7f",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -471,7 +471,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "Potential data exfiltration pattern",
-      "evidenceSha256": "4ba65b3c4e43bbc6593533ce6ed94fd6ccbbd03b2e69a26560792f4a2424d7e5",
+      "evidenceSha256": "b382d21be4dd9789c7b809536677d49f6442fbbd444616236390510eda657890",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."
@@ -499,7 +499,7 @@
       "severity": "high",
       "file": "src/security.ts",
       "message": "Setting sensitive environment variable",
-      "evidenceSha256": "d64c7f2bf3dcbf5104dd04727844279ac4cb25cbbb69568c76c18051c19ad1db",
+      "evidenceSha256": "b861a9bb05176fa66bd20ddf12852f02f3b149ff01fbf87957d03e0596f3bdc3",
       "review": {
         "status": "reviewed",
         "rationale": "Detector definition intentionally contains the pattern it detects."

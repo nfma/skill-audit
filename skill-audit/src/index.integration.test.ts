@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   chmodSync,
   mkdirSync,
@@ -11,10 +11,11 @@ import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
+import { runCli as runCliInProcess } from "./index.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = join(packageRoot, "node_modules", "tsx", "dist", "cli.mjs");
-const entrypointPath = join(packageRoot, "src", "index.ts");
+const entrypointPath = join(packageRoot, "src", "cli.ts");
 let fixtureRoot: string;
 let fixtureSkillPath: string;
 let piiSkillPath: string;
@@ -89,6 +90,32 @@ function runCli(
 }
 
 describe("CLI option validation", () => {
+  it("runs an explicit audit in-process with an asserted report", async () => {
+    const previousHome = process.env.HOME;
+    process.env.HOME = fixtureRoot;
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await runCliInProcess([
+        process.execPath,
+        "skill-audit",
+        "--path",
+        fixtureSkillPath,
+        "--no-deps",
+        "--json",
+      ]);
+      const serializedReport = log.mock.calls
+        .flat()
+        .find((value) => typeof value === "string" && value.startsWith("["));
+      expect(serializedReport).toBeTypeOf("string");
+      const report = JSON.parse(serializedReport as string);
+      expect(report).toHaveLength(1);
+      expect(report[0].skill.path).toBe(realpathSync(fixtureSkillPath));
+    } finally {
+      log.mockRestore();
+      process.env.HOME = previousHome;
+    }
+  });
+
   it("describes threshold and feed snapshots without implying inactive behavior", () => {
     const result = runCli(["--help"]);
 

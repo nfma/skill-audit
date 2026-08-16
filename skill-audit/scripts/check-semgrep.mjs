@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 import { parseBaselineArguments } from "./baseline-cli.mjs";
 
 const SCHEMA_VERSION = 1;
+const EXCLUDED_FINDING_FILES = new Set([
+  "skill-audit/src/generated/release-data.ts",
+]);
 
 function parseArguments(argv) {
   const options = parseBaselineArguments(argv, "--repo-root");
@@ -98,9 +101,48 @@ function normalizeReport(report, repoRoot) {
     }
   }
 
-  return [...grouped.values()].sort((left, right) =>
-    findingKey(left).localeCompare(findingKey(right)),
-  );
+  return [...grouped.values()]
+    .filter((finding) => !EXCLUDED_FINDING_FILES.has(finding.path))
+    .sort((left, right) => findingKey(left).localeCompare(findingKey(right)));
+}
+
+function validateReportHealth(report) {
+  if (
+    typeof report.time !== "object" ||
+    report.time === null ||
+    Array.isArray(report.time)
+  ) {
+    throw new TypeError("Semgrep report must contain time metadata");
+  }
+  if (!Array.isArray(report.time.fixpoint_timeouts)) {
+    throw new TypeError(
+      "Semgrep report time metadata must contain a fixpoint_timeouts array",
+    );
+  }
+
+  return report.time.fixpoint_timeouts;
+}
+
+function describeFixpointTimeout(timeout) {
+  const path = timeout?.location?.path;
+  const line = timeout?.location?.start?.line;
+  const column = timeout?.location?.start?.col;
+  if (
+    typeof path === "string" &&
+    Number.isInteger(line) &&
+    Number.isInteger(column)
+  ) {
+    return `${path}:${line}:${column}`;
+  }
+
+  return JSON.stringify(timeout?.location ?? null);
+}
+
+function reportFixpointTimeouts(timeouts) {
+  console.log(`Semgrep taint fixpoint timeouts: ${timeouts.length}.`);
+  for (const timeout of timeouts) {
+    console.log(`  - ${describeFixpointTimeout(timeout)}`);
+  }
 }
 
 function scanErrorKey(error) {
@@ -287,10 +329,17 @@ function checkScanErrors(actual, expected) {
 function main(argv) {
   const options = parseArguments(argv);
   const report = JSON.parse(readFileSync(options.reportPath, "utf8"));
+  const fixpointTimeouts = validateReportHealth(report);
   const findings = normalizeReport(report, options.repoRoot);
   const scanErrors = normalizeScanErrors(report, options.repoRoot);
+  reportFixpointTimeouts(fixpointTimeouts);
 
   if (options.writeBaseline) {
+    if (fixpointTimeouts.length > 0) {
+      throw new Error(
+        "Cannot write a Semgrep baseline from a scan with taint fixpoint timeouts",
+      );
+    }
     const baseline = {
       schemaVersion: SCHEMA_VERSION,
       findings: findings.map(baselineFinding),
@@ -331,4 +380,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 }
 
-export { checkBaseline, normalizeReport, normalizeScanErrors };
+export {
+  checkBaseline,
+  normalizeReport,
+  normalizeScanErrors,
+  validateReportHealth,
+};

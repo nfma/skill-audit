@@ -183,10 +183,10 @@ When running audit mode, skill-audit automatically scans for these patterns:
 
 ```bash
 # Full audit with PII detection
-npx skill-audit --mode audit -v
+skill-audit --mode audit -v
 
 # JSON output for integration
-npx skill-audit --mode audit -j -o audit.json
+skill-audit --mode audit -j -o audit.json
 ```
 
 ### Sample Finding
