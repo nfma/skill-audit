@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const SCHEMA_VERSION = 2;
 const EXCLUDED_FINDING_DIRECTORIES = ["dist/"];
+const EXCLUDED_FINDING_FILES = new Set(["package-lock.json"]);
 const FINDING_BUCKETS = [
   "specFindings",
   "securityFindings",
@@ -107,12 +108,12 @@ function normalizeReportWithSummary(report, skillRoot) {
       }));
     }),
   );
-  const findings = normalizedFindings.filter(
-    (finding) =>
-      !EXCLUDED_FINDING_DIRECTORIES.some((directory) =>
-        finding.file.startsWith(directory),
-      ),
-  );
+  const findings = normalizedFindings.filter((finding) => {
+    const inExcludedDirectory = EXCLUDED_FINDING_DIRECTORIES.some((directory) =>
+      finding.file.startsWith(directory),
+    );
+    return !inExcludedDirectory && !EXCLUDED_FINDING_FILES.has(finding.file);
+  });
 
   return {
     excludedFindingCount: normalizedFindings.length - findings.length,
@@ -235,7 +236,7 @@ function main(argv) {
     excludedFindingCount === 1 ? "finding" : "findings";
 
   console.log(
-    `Self-audit excluded ${excludedFindingCount} generated dist/ ${excludedFindingLabel} from baseline matching.`,
+    `Self-audit excluded ${excludedFindingCount} generated or dependency-lock ${excludedFindingLabel} from baseline matching.`,
   );
 
   if (options.writeBaseline) {

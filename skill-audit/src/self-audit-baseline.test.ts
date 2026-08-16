@@ -144,4 +144,40 @@ describe("self-audit baseline checker", () => {
     expect(baseline.findings).toHaveLength(1);
     expect(baseline.findings[0].file).toBe("fixture.ts");
   });
+
+  it("ignores package-lock findings when integrity hashes change", () => {
+    const fixture = createFixture();
+    const packageLockPath = join(fixture.directory, "package-lock.json");
+    writeFileSync(
+      packageLockPath,
+      JSON.stringify({ integrity: "sha512-original" }),
+    );
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report[0].piiFindings.push({
+      ...report[0].securityFindings[0],
+      id: "PII-013",
+      category: "PII",
+      asi: "ASI03",
+      file: packageLockPath,
+      message: "IBAN (International Bank Account Number)",
+      evidence: "sha512-original",
+    });
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+
+    writeFileSync(
+      packageLockPath,
+      JSON.stringify({ integrity: "sha512-updated" }),
+    );
+    report[0].piiFindings[0].evidence = "sha512-updated";
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("matches 1 reviewed baseline finding");
+  });
 });
