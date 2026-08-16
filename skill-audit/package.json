@@ -8,10 +8,10 @@
     "skill-audit": "dist/cli.js"
   },
   "scripts": {
-    "generate:release-data": "node scripts/generate-release-data.mjs",
+    "generate:release-data": "tsx scripts/generate-release-data.ts",
     "prebuild": "npm run generate:release-data",
     "build": "node scripts/clean.cjs && npm run typecheck && tsc",
-    "build:release": "node scripts/generate-release-data.mjs --check && tsx scripts/build-release.ts",
+    "build:release": "tsx scripts/generate-release-data.ts --check && tsx scripts/build-release.ts",
     "verify:release": "tsx scripts/verify-release.ts",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
@@ -19,7 +19,7 @@
     "lint:js": "eslint src scripts --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/cli.js --update-db",
-    "pretest": "node scripts/generate-release-data.mjs --check",
+    "pretest": "tsx scripts/generate-release-data.ts --check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",

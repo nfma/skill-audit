@@ -1,34 +1,27 @@
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { RELEASE_EXPORTS, RELEASE_MAX_BYTES } from "./release-assets.js";
+import { buildRelease } from "../scripts/build-release.js";
+import { verifyRelease } from "../scripts/verify-release.js";
+import {
+  compareUtf8Bytes,
+  RELEASE_EXPORTS,
+  RELEASE_MAX_BYTES,
+} from "./release-assets.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const tsxPath = join(packageRoot, "node_modules", "tsx", "dist", "cli.mjs");
 let releaseDirectory: string;
 
-function runScript(script: string) {
-  return spawnSync(process.execPath, [tsxPath, join(packageRoot, script)], {
-    cwd: packageRoot,
-    encoding: "utf8",
-    timeout: 30_000,
-    env: {
-      ...process.env,
-      RELEASE_OUTPUT_DIR: releaseDirectory,
-      RELEASE_TAG: "v0.10.0",
-      SOURCE_COMMIT: "a".repeat(40),
-    },
-  });
-}
-
-beforeAll(() => {
+beforeAll(async () => {
   releaseDirectory = mkdtempSync(join(tmpdir(), "skill-audit-bundle-"));
-  const build = runScript("scripts/build-release.ts");
-  expect(build.error).toBeUndefined();
-  expect(build.status, build.stderr).toBe(0);
+  await buildRelease({
+    packageRoot,
+    outputDirectory: releaseDirectory,
+    releaseTag: "v0.10.0",
+    sourceCommit: "a".repeat(40),
+  });
 });
 
 afterAll(() => {
@@ -37,7 +30,7 @@ afterAll(() => {
 
 describe("release bundle", () => {
   it("creates exactly the three content-addressed assets", () => {
-    expect(readdirSync(releaseDirectory).sort()).toEqual([
+    expect(readdirSync(releaseDirectory).sort(compareUtf8Bytes)).toEqual([
       "skill-audit-v0.10.0-release.json",
       "skill-audit-v0.10.0.mjs",
       "skill-audit-v0.10.0.mjs.sha256",
@@ -53,11 +46,14 @@ describe("release bundle", () => {
     expect(text.indexOf("#!", 2)).toBe(-1);
   });
 
-  it("passes the executable, import, parity, symlink, and descriptor verifier", () => {
-    const verification = runScript("scripts/verify-release.ts");
-    expect(verification.error).toBeUndefined();
-    expect(verification.status, verification.stderr).toBe(0);
-    expect(verification.stdout).toContain("Verified skill-audit-v0.10.0.mjs");
+  it("passes the executable, import, parity, symlink, and descriptor verifier", async () => {
+    const verification = await verifyRelease({
+      packageRoot,
+      releaseDirectory,
+      releaseTag: "v0.10.0",
+      sourceCommit: "a".repeat(40),
+    });
+    expect(verification.message).toContain("Verified skill-audit-v0.10.0.mjs");
   });
 
   it("exports exactly the six supported functions", async () => {
@@ -65,6 +61,26 @@ describe("release bundle", () => {
     const imported = await import(
       `${pathToFileURL(executablePath).href}?test=${Date.now()}`
     );
-    expect(Object.keys(imported).sort()).toEqual([...RELEASE_EXPORTS].sort());
+    expect(Object.keys(imported).sort(compareUtf8Bytes)).toEqual(
+      [...RELEASE_EXPORTS].sort(compareUtf8Bytes),
+    );
+  });
+
+  it("rejects inconsistent release identities before building", async () => {
+    await expect(
+      buildRelease({
+        packageRoot,
+        outputDirectory: releaseDirectory,
+        releaseTag: "v0.10.1",
+        sourceCommit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("does not match package version");
+    await expect(
+      buildRelease({
+        packageRoot,
+        outputDirectory: releaseDirectory,
+        sourceCommit: "short",
+      }),
+    ).rejects.toThrow("full lowercase commit SHA");
   });
 });

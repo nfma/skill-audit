@@ -33,8 +33,14 @@ fork is not published to npm.
 
 Each release also contains a SHA-256 file and a deterministic descriptor that
 binds the executable to its source commit, release workflow, embedded rules,
-and documentation digests. Maintainers accepting an upgrade should additionally
-run `gh release verify` and `gh attestation verify` against the pinned release.
+and documentation digests. `embeddedRulesSha256` is computed from canonical
+UTF-8 JSON of the decoded rules: arrays retain order; object keys are sorted by
+UTF-8 bytes; strings, booleans, `null`, and finite numbers use JSON scalar
+encoding; and unsupported values, non-finite numbers, and non-plain objects are
+rejected. Whitespace, line endings, and source object-key order therefore do not
+change rule identity. Maintainers accepting an upgrade should inspect the
+release with `gh release view` and verify the asset provenance with
+`gh attestation verify` against the pinned repository.
 
 ### Install the human-readable skill
 
@@ -250,47 +256,47 @@ Context checks include:
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-g, --global` | Audit global skills | ✓ |
-| `-p, --project` | Audit project-level skills | |
-| `--path <paths...>` | Audit explicit skill directories instead of discovery | |
-| `-a, --agent <agents...>` | Filter by agent names | |
-| `-x, --exclude-skill <names...>` | Exclude skills by name | |
-| `--mode <mode>` | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env` | audit |
-| `-t, --threshold <score>` | Set the risk threshold used with `--block` | unset (3.0 with `--block`) |
-| `-j, --json` | JSON output | |
-| `-o, --output <file>` | Save to file | |
-| `--no-deps` | Skip dependency scan | |
-| `--compliance` | Run opt-in documentation heuristics in audit mode | |
-| `--update-db` | Update the KEV, EPSS, and NVD maintenance caches | |
-| `--source <sources...>` | Select `kev`, `epss`, `nvd`, or `all` for `--update-db` | all |
-| `--strict` | Exit 1 if a feed update fails; requires `--update-db` | |
-| `--quiet` | Suppress non-error output | |
-| `--download-offline-db <dir>` | Export KEV, EPSS, and NVD snapshots | |
-| `--check-command <command>` | Classify a shell command and check environment drift if sensitive | |
-| `-v, --verbose` | Verbose output | |
-| `--install-hook` | Install PreToolUse hook | |
-| `--uninstall-hook` | Remove PreToolUse hook | |
-| `--hook-threshold <score>` | Hook risk threshold | 3.0 |
-| `--hook-status` | Show hook status | |
-| `--block` | Exit 1 for a high/critical blocking finding or when the threshold is met | |
+| Flag                             | Description                                                              | Default                    |
+| -------------------------------- | ------------------------------------------------------------------------ | -------------------------- |
+| `-g, --global`                   | Audit global skills                                                      | ✓                          |
+| `-p, --project`                  | Audit project-level skills                                               |                            |
+| `--path <paths...>`              | Audit explicit skill directories instead of discovery                    |                            |
+| `-a, --agent <agents...>`        | Filter by agent names                                                    |                            |
+| `-x, --exclude-skill <names...>` | Exclude skills by name                                                   |                            |
+| `--mode <mode>`                  | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env`                    | audit                      |
+| `-t, --threshold <score>`        | Set the risk threshold used with `--block`                               | unset (3.0 with `--block`) |
+| `-j, --json`                     | JSON output                                                              |                            |
+| `-o, --output <file>`            | Save to file                                                             |                            |
+| `--no-deps`                      | Skip dependency scan                                                     |                            |
+| `--compliance`                   | Run opt-in documentation heuristics in audit mode                        |                            |
+| `--update-db`                    | Update the KEV, EPSS, and NVD maintenance caches                         |                            |
+| `--source <sources...>`          | Select `kev`, `epss`, `nvd`, or `all` for `--update-db`                  | all                        |
+| `--strict`                       | Exit 1 if a feed update fails; requires `--update-db`                    |                            |
+| `--quiet`                        | Suppress non-error output                                                |                            |
+| `--download-offline-db <dir>`    | Export KEV, EPSS, and NVD snapshots                                      |                            |
+| `--check-command <command>`      | Classify a shell command and check environment drift if sensitive        |                            |
+| `-v, --verbose`                  | Verbose output                                                           |                            |
+| `--install-hook`                 | Install PreToolUse hook                                                  |                            |
+| `--uninstall-hook`               | Remove PreToolUse hook                                                   |                            |
+| `--hook-threshold <score>`       | Hook risk threshold                                                      | 3.0                        |
+| `--hook-status`                  | Show hook status                                                         |                            |
+| `--block`                        | Exit 1 for a high/critical blocking finding or when the threshold is met |                            |
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success (no blocking issues) |
-| 1 | Blocking finding, threshold met, strict update failure, or command error |
+| Code | Meaning                                                                  |
+| ---- | ------------------------------------------------------------------------ |
+| 0    | Success (no blocking issues)                                             |
+| 1    | Blocking finding, threshold met, strict update failure, or command error |
 
 ## Risk Levels
 
-| Level | Score | Icon |
-|-------|-------|------|
-| Safe | 0 | ✅ |
-| Risky | 0.1-3.0 | ⚠️ |
-| Dangerous | 3.1-7.0 | 🔴 |
-| Malicious | 7.1+ | ☠️ |
+| Level     | Score   | Icon |
+| --------- | ------- | ---- |
+| Safe      | 0       | ✅   |
+| Risky     | 0.1-3.0 | ⚠️   |
+| Dangerous | 3.1-7.0 | 🔴   |
+| Malicious | 7.1+    | ☠️   |
 
 ## OWASP Agentic Top 10 Mapping
 
@@ -303,15 +309,16 @@ Context checks include:
 
 The maintenance commands can download vulnerability-intelligence snapshots:
 
-| Source | Current behavior |
-|--------|------------------|
-| CISA KEV | Downloaded by `--update-db` and `--download-offline-db` |
-| NIST NVD | Downloads CVEs modified in the preceding 24 hours |
-| FIRST EPSS | Downloaded by `--update-db` and `--download-offline-db` |
-| OSV.dev | Queried live by dependency scanning; not cached by `--update-db` |
-| GHSA | Query helper exists but is not wired into ordinary audits |
+| Source     | Current behavior                                                 |
+| ---------- | ---------------------------------------------------------------- |
+| CISA KEV   | Downloaded by `--update-db` and `--download-offline-db`          |
+| NIST NVD   | Downloads CVEs modified in the preceding 24 hours                |
+| FIRST EPSS | Downloaded by `--update-db` and `--download-offline-db`          |
+| OSV.dev    | Queried live by dependency scanning; not cached by `--update-db` |
+| GHSA       | Query helper exists but is not wired into ordinary audits        |
 
 **Feed refresh:**
+
 - Daily root GitHub Actions workflow maintains a CI cache
 - Manual: `skill-audit --update-db`
 - Audits and the informational postinstall script do not refresh feeds in the background

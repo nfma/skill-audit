@@ -63,6 +63,38 @@ export function compareUtf8Bytes(left: string, right: string): number {
   return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
 }
 
+export function canonicalizeJson(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "string" || typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new TypeError("Canonical JSON does not support non-finite numbers");
+    }
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => canonicalizeJson(entry)).join(",")}]`;
+  }
+  if (typeof value !== "object") {
+    throw new TypeError(`Canonical JSON does not support ${typeof value}`);
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Canonical JSON requires plain objects");
+  }
+  const entries = Object.entries(value).sort(([left], [right]) =>
+    compareUtf8Bytes(left, right),
+  );
+  return `{${entries
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalizeJson(entry)}`)
+    .join(",")}}`;
+}
+
 function isCanonicalDocumentationPath(path: string): boolean {
   if (path === "SKILL.md") {
     return true;
