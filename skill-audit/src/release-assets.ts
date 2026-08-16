@@ -63,6 +63,20 @@ export function compareUtf8Bytes(left: string, right: string): number {
   return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
 }
 
+function canonicalizeFiniteNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new TypeError("Canonical JSON does not support non-finite numbers");
+  }
+  // RFC 8785 number serialization adopts ECMAScript's shortest round-trip
+  // serialization for IEEE 754 numbers. JSON.stringify implements that
+  // algorithm and also canonicalizes negative zero to 0.
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new TypeError("Canonical JSON could not serialize a finite number");
+  }
+  return serialized;
+}
+
 export function canonicalizeJson(value: unknown): string {
   if (value === null) {
     return "null";
@@ -71,12 +85,14 @@ export function canonicalizeJson(value: unknown): string {
     return JSON.stringify(value);
   }
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new TypeError("Canonical JSON does not support non-finite numbers");
-    }
-    return JSON.stringify(value);
+    return canonicalizeFiniteNumber(value);
   }
   if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) {
+        throw new TypeError("Canonical JSON does not support sparse arrays");
+      }
+    }
     return `[${value.map((entry) => canonicalizeJson(entry)).join(",")}]`;
   }
   if (typeof value !== "object") {
@@ -102,10 +118,7 @@ function isCanonicalDocumentationPath(path: string): boolean {
   if (
     !path.startsWith("references/") ||
     path.includes("\\") ||
-    [...path].some((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint <= 0x1f || codePoint === 0x7f;
-    })
+    /[\p{Cc}\p{Cf}]/u.test(path)
   ) {
     return false;
   }

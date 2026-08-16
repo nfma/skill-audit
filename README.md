@@ -211,7 +211,7 @@ secrets, skip the scan with a warning; a missing token on any other run fails
 the job. The workflow type-checks, tests with LCOV coverage, builds, scans, and
 waits for the quality gate.
 
-This fork publishes one tree-shaken Node 24 executable through immutable GitHub Releases and is not published to npm. Release assets include a SHA-256 checksum and a descriptor binding the executable, source commit, workflow, embedded rules, and documentation digests. The embedded-rules digest covers canonical decoded JSON: array order is retained, object keys are sorted by UTF-8 bytes, and JSON presentation details such as whitespace, line endings, and source key order do not affect rule identity.
+This fork publishes one tree-shaken Node 24 executable through immutable GitHub Releases and is not published to npm. Release assets include a SHA-256 checksum and a descriptor binding the executable, source commit, workflow, embedded rules, and documentation digests. The embedded-rules digest covers canonical decoded JSON: array order is retained, object keys are sorted by UTF-8 bytes, finite numbers use the RFC 8785 shortest round-trippable IEEE 754 representation, and sparse arrays or unsupported values are rejected. JSON presentation details such as whitespace, line endings, and source key order do not affect rule identity.
 
 ## Project Structure
 

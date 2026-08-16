@@ -20,7 +20,13 @@ import {
   EMBEDDED_DEFAULT_PATTERNS_BASE64,
   EMBEDDED_RULES_SHA256,
 } from "./generated/release-data.js";
-import { decodeEmbeddedPatterns, loadEmbeddedPatterns } from "./patterns.js";
+import {
+  compilePatterns,
+  countCompiledPatterns,
+  decodeEmbeddedPatterns,
+  loadEmbeddedPatterns,
+  type PatternsFile,
+} from "./patterns.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryDirectories: string[] = [];
@@ -48,6 +54,16 @@ describe("canonical rule identity", () => {
     expect(canonicalizeJson(left)).toBe(canonicalizeJson(right));
     expect(canonicalizeJson(left)).toBe('{"a":{"b":[3,2,1],"y":true},"z":1}');
     expect(["é", "z", "a"].sort(compareUtf8Bytes)).toEqual(["a", "z", "é"]);
+  });
+
+  it("uses portable finite-number encoding and rejects sparse arrays", () => {
+    expect(canonicalizeJson(-0)).toBe("0");
+    expect(canonicalizeJson(1e-7)).toBe("1e-7");
+    expect(canonicalizeJson(1e21)).toBe("1e+21");
+
+    const sparse: unknown[] = new Array(3);
+    sparse[2] = 1;
+    expect(() => canonicalizeJson(sparse)).toThrow("sparse arrays");
   });
 
   it("rejects values outside the JSON data model", () => {
@@ -95,6 +111,58 @@ describe("canonical rule identity", () => {
     expect(() =>
       decodeEmbeddedPatterns(EMBEDDED_DEFAULT_PATTERNS_BASE64, "0".repeat(64)),
     ).toThrow("could not be decoded");
+  });
+
+  it("fails the complete rule load when any pattern cannot compile", () => {
+    const invalid: PatternsFile = {
+      version: "1",
+      updated: "today",
+      description: "invalid regex",
+      categories: {
+        fixture: {
+          name: "Fixture",
+          description: "Fixture",
+          patterns: [
+            {
+              pattern: "[",
+              id: "FIXTURE-INVALID",
+              severity: "high",
+              message: "invalid",
+            },
+          ],
+        },
+      },
+    };
+
+    expect(() => compilePatterns(invalid)).toThrow(
+      "Pattern FIXTURE-INVALID could not be compiled",
+    );
+  });
+
+  it("counts compiled rules rather than category containers", () => {
+    const emptyCategories = new Map([["fixture", []]]);
+    expect(countCompiledPatterns(emptyCategories)).toBe(0);
+
+    const compiled = compilePatterns({
+      version: "1",
+      updated: "today",
+      description: "one rule",
+      categories: {
+        fixture: {
+          name: "Fixture",
+          description: "Fixture",
+          patterns: [
+            {
+              pattern: "fixture",
+              id: "FIXTURE-1",
+              severity: "low",
+              message: "fixture",
+            },
+          ],
+        },
+      },
+    });
+    expect(countCompiledPatterns(compiled)).toBe(1);
   });
 
   it.each([

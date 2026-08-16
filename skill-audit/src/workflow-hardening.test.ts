@@ -137,6 +137,9 @@ describe("repository workflow hardening", () => {
     expect(security?.content).toContain("Run full Semgrep scan");
     expect(security?.content).toContain("check-semgrep.mjs");
     expect(security?.content).toContain("--baseline .semgrep-baseline.json");
+    expect(security?.content).toContain("--jobs 1");
+    expect(security?.content).toContain("--timeout 0");
+    expect(security?.content).toContain("--timeout-threshold 0");
     expect(security?.content).not.toContain("--baseline-commit");
     expect(security?.content).not.toContain("github.event_name != 'schedule'");
   });

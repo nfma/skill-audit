@@ -276,18 +276,6 @@
         "status": "reviewed",
         "rationale": "ecosystem and packageName may originate in audited dependency metadata, but this value is emitted only to the operator's local diagnostic stream. It does not affect execution, file access, or an authorization decision."
       }
-    },
-    {
-      "checkId": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
-      "path": "skill-audit/src/patterns.ts",
-      "severity": "INFO",
-      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
-      "sourceSha256": "a6e0f3194ec491a6f0416adb45420126693cff90609ffe732bb050728e5e3d56",
-      "count": 1,
-      "review": {
-        "status": "reviewed",
-        "rationale": "rule.id comes from loaded pattern metadata and is emitted only to the operator's local compile-error diagnostic. It does not affect execution, file access, or an authorization decision."
-      }
     }
   ],
   "scanErrors": [
@@ -313,7 +301,7 @@
       "level": "warn",
       "type": "PartialParsing",
       "path": "skill-audit/src/security.ts",
-      "message": "Syntax error at line skill-audit/src/security.ts:121:\n `/<!--[\\s\\S]*?-->/g,\n    id:` was unexpected",
+      "message": "Syntax error at line skill-audit/src/security.ts:119:\n `/<!--[\\s\\S]*?-->/g,\n    id:` was unexpected",
       "sources": [
         {
           "path": "skill-audit/src/security.ts",
@@ -322,7 +310,7 @@
       ],
       "review": {
         "status": "reviewed",
-        "rationale": "Semgrep 1.173 partially parses the valid HTML-comment detector regular expression and reports a cascading warning; TypeScript typechecking, build, and security regression tests compile and execute this source. Formatter-only commit ffa7286 expanded the same PI09 regex object, moving the line and producing one more specific source span."
+        "rationale": "Semgrep 1.173 partially parses the valid HTML-comment detector regular expression and reports a cascading warning; TypeScript typechecking, build, and security regression tests compile and execute this source. Formatter-only commit ffa7286 expanded the same PI09 regex object, moving the line and producing one more specific source span. The L17-F1 boundary fix removed two preceding source lines, relocating this unchanged PI09 construct from line 121 to line 119 without changing its reviewed source hash."
       }
     }
   ]

@@ -58,16 +58,29 @@ skill-audit diff-env        # Detect drift from baseline
 skill-audit --check-command "npx skills add owner/repo"
 ```
 
+## Release Integrity
+
+GitHub Releases include the executable, its checksum, and a descriptor. The
+descriptor's `embeddedRulesSha256` binds the decoded rule data rather than its
+base64 transport. To recompute it, encode canonical UTF-8 JSON with array order
+preserved and object keys sorted by UTF-8 bytes. Strings, booleans, and `null`
+use JSON encoding; finite numbers use the RFC 8785 shortest
+round-trippable IEEE 754 form, with negative zero encoded as `0`. Reject sparse
+arrays, non-finite numbers, unsupported values, and non-plain objects.
+
+The descriptor also binds normalized documentation digests. Verify both the
+asset checksum and GitHub attestation before accepting an upgrade.
+
 ## Security Categories
 
-| Category | OWASP | What It Detects |
-|----------|-------|-----------------|
+| Category         | OWASP | What It Detects                                      |
+| ---------------- | ----- | ---------------------------------------------------- |
 | Prompt Injection | ASI01 | Ignore instructions, role bypass, context forgetting |
-| Tool Misuse | ASI02 | Data exfiltration, unauthorized API calls |
-| PII Exposure | ASI03 | Hardcoded secrets, API keys, Vietnamese IDs |
-| Supply Chain | ASI04 | Vulnerable dependencies, credential leaks |
-| Code Execution | ASI05 | Shell injection, dangerous commands |
-| Behavioral | ASI09 | Manipulation attempts, blind trust requests |
+| Tool Misuse      | ASI02 | Data exfiltration, unauthorized API calls            |
+| PII Exposure     | ASI03 | Hardcoded secrets, API keys, Vietnamese IDs          |
+| Supply Chain     | ASI04 | Vulnerable dependencies, credential leaks            |
+| Code Execution   | ASI05 | Shell injection, dangerous commands                  |
+| Behavioral       | ASI09 | Manipulation attempts, blind trust requests          |
 
 Compliance checks are opt-in heuristics for Vietnam AI Law 2026, the EU AI Act, and GDPR. They identify documentation gaps but are not a legal determination.
 

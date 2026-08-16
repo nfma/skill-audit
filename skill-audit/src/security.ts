@@ -4,6 +4,7 @@ import { SkillInfo, SkillManifest, Finding, FindingCategory } from "./types.js";
 import { resolveSkillPath, getSkillFiles } from "./discover.js";
 import { isDocumentedSafeLifecycleScript } from "./lifecycle-safety.js";
 import {
+  countCompiledPatterns,
   loadAndCompile,
   hasPatternsFile,
   getPatternMetadata,
@@ -43,17 +44,14 @@ function initPatterns(): Map<string, CompiledPattern[]> {
     return compiledPatterns;
   }
 
-  try {
-    if (hasPatternsFile()) {
-      compiledPatterns = loadAndCompile();
-      patternMetadata = getPatternMetadata();
-      return compiledPatterns;
+  if (hasPatternsFile()) {
+    const loadedPatterns = loadAndCompile();
+    if (countCompiledPatterns(loadedPatterns) === 0) {
+      throw new Error("Pattern database did not compile any usable rules");
     }
-  } catch (error) {
-    console.warn(
-      "Failed to load external patterns, using hardcoded fallback:",
-      error,
-    );
+    compiledPatterns = loadedPatterns;
+    patternMetadata = getPatternMetadata();
+    return compiledPatterns;
   }
 
   // Fallback to hardcoded patterns (original implementation)
@@ -832,7 +830,7 @@ export function auditSecurity(
 
   // Initialize patterns (load from file or use hardcoded fallback)
   const patterns = initPatterns();
-  const hasExternalPatterns = patterns.size > 0;
+  const hasExternalPatterns = countCompiledPatterns(patterns) > 0;
 
   const files = getSkillFiles(resolvedPath);
   const findings: Finding[] = [];

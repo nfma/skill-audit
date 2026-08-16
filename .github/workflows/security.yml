@@ -46,6 +46,9 @@ jobs:
           uvx --no-build --from semgrep==1.173.0 semgrep scan \
             --config p/default \
             --config p/security-audit \
+            --jobs 1 \
+            --timeout 0 \
+            --timeout-threshold 0 \
             --metrics=off \
             --exclude skill-audit/node_modules \
             --exclude skill-audit/dist \

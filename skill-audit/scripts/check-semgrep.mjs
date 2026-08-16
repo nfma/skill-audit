@@ -106,6 +106,26 @@ function normalizeReport(report, repoRoot) {
     .sort((left, right) => findingKey(left).localeCompare(findingKey(right)));
 }
 
+function validateReportHealth(report) {
+  if (
+    typeof report.time !== "object" ||
+    report.time === null ||
+    Array.isArray(report.time)
+  ) {
+    throw new TypeError("Semgrep report must contain time metadata");
+  }
+  if (!Array.isArray(report.time.fixpoint_timeouts)) {
+    throw new TypeError(
+      "Semgrep report time metadata must contain a fixpoint_timeouts array",
+    );
+  }
+  if (report.time.fixpoint_timeouts.length > 0) {
+    throw new Error(
+      `Semgrep taint analysis did not reach a fixpoint for ${report.time.fixpoint_timeouts.length} target${report.time.fixpoint_timeouts.length === 1 ? "" : "s"}`,
+    );
+  }
+}
+
 function scanErrorKey(error) {
   return JSON.stringify([
     error.code,
@@ -290,6 +310,7 @@ function checkScanErrors(actual, expected) {
 function main(argv) {
   const options = parseArguments(argv);
   const report = JSON.parse(readFileSync(options.reportPath, "utf8"));
+  validateReportHealth(report);
   const findings = normalizeReport(report, options.repoRoot);
   const scanErrors = normalizeScanErrors(report, options.repoRoot);
 
@@ -334,4 +355,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 }
 
-export { checkBaseline, normalizeReport, normalizeScanErrors };
+export {
+  checkBaseline,
+  normalizeReport,
+  normalizeScanErrors,
+  validateReportHealth,
+};

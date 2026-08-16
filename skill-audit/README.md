@@ -36,11 +36,13 @@ binds the executable to its source commit, release workflow, embedded rules,
 and documentation digests. `embeddedRulesSha256` is computed from canonical
 UTF-8 JSON of the decoded rules: arrays retain order; object keys are sorted by
 UTF-8 bytes; strings, booleans, `null`, and finite numbers use JSON scalar
-encoding; and unsupported values, non-finite numbers, and non-plain objects are
-rejected. Whitespace, line endings, and source object-key order therefore do not
-change rule identity. Maintainers accepting an upgrade should inspect the
-release with `gh release view` and verify the asset provenance with
-`gh attestation verify` against the pinned repository.
+encoding. Finite numbers follow RFC 8785 number serialization: the shortest
+round-trippable IEEE 754 representation used by ECMAScript, with negative zero
+encoded as `0`. Sparse arrays, unsupported values, non-finite numbers, and
+non-plain objects are rejected. Whitespace, line endings, and source object-key
+order therefore do not change rule identity. Maintainers accepting an upgrade
+should inspect the release with `gh release view` and verify the asset
+provenance with `gh attestation verify` against the pinned repository.
 
 ### Install the human-readable skill
 

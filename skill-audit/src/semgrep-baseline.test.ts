@@ -44,6 +44,7 @@ function createFixture() {
         },
       ],
       errors: [],
+      time: { fixpoint_timeouts: [] },
     }),
   );
   return { directory, findingFile, reportPath, baselinePath };
@@ -110,6 +111,45 @@ describe("Semgrep baseline checker", () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain(
       "matches 1 reviewed finding groups (1 occurrence)",
+    );
+  });
+
+  it.each([
+    [
+      "missing time metadata",
+      (report: Record<string, unknown>) => {
+        delete report.time;
+      },
+    ],
+    [
+      "missing fixpoint timeout metadata",
+      (report: Record<string, unknown>) => {
+        report.time = {};
+      },
+    ],
+  ])("fails closed on %s", (_name, mutateReport) => {
+    const fixture = createFixture();
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    mutateReport(report);
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture, ["--write-baseline"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Semgrep report");
+  });
+
+  it("fails closed when taint analysis reports a fixpoint timeout", () => {
+    const fixture = createFixture();
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.time.fixpoint_timeouts = [{ path: "fixture.ts" }];
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture, ["--write-baseline"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Semgrep taint analysis did not reach a fixpoint for 1 target",
     );
   });
 

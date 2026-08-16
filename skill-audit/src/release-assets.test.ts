@@ -10,11 +10,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assertReleaseDescriptor,
+  compareUtf8Bytes,
   computeDocumentationDigests,
   createReleaseDescriptor,
   normalizeDocumentationText,
   RELEASE_EXPORTS,
   RELEASE_MAX_BYTES,
+  sha256Hex,
 } from "./release-assets.js";
 
 const temporaryDirectories: string[] = [];
@@ -46,6 +48,18 @@ function releaseDescriptorFixture() {
     embeddedRulesSha256: "c".repeat(64),
     documentation: computeDocumentationDigests(documentationFixture()),
   });
+}
+
+function rebindDocumentation(
+  descriptor: ReturnType<typeof releaseDescriptorFixture>,
+) {
+  descriptor.documentation.files.sort((left, right) =>
+    compareUtf8Bytes(left.path, right.path),
+  );
+  const aggregate = descriptor.documentation.files
+    .map(({ path, sha256 }) => `${path}\0${sha256}\n`)
+    .join("");
+  descriptor.documentation.upstreamDocsSha256 = sha256Hex(aggregate);
 }
 
 describe("release documentation digests", () => {
@@ -114,9 +128,12 @@ describe("release descriptor", () => {
       "references//a.md",
       "references\\a.md",
       "references/a\u0000b.md",
+      "references/a\u0085b.md",
+      "references/a\u202eb.md",
     ]) {
       const descriptor = releaseDescriptorFixture();
       descriptor.documentation.files[1].path = path;
+      rebindDocumentation(descriptor);
       expect(() => assertReleaseDescriptor(descriptor), path).toThrow(
         "invalid documentation entries",
       );

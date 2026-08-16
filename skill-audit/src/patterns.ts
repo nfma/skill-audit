@@ -178,25 +178,38 @@ export function compilePatterns(
     };
 
     for (const rule of category.patterns) {
+      let regex: RegExp;
       try {
-        const regex = new RegExp(rule.pattern, rule.flags || "i");
-        categoryPatterns.push({
-          regex,
-          id: rule.id,
-          severity: rule.severity,
-          message: rule.message,
-          category: categoryMetadata.category,
-          asi: categoryMetadata.asi,
-        });
+        regex = new RegExp(rule.pattern, rule.flags || "i");
       } catch (error) {
-        console.error(`Failed to compile pattern ${rule.id}:`, error);
+        throw new Error(`Pattern ${rule.id} could not be compiled`, {
+          cause: error,
+        });
       }
+      categoryPatterns.push({
+        regex,
+        id: rule.id,
+        severity: rule.severity,
+        message: rule.message,
+        category: categoryMetadata.category,
+        asi: categoryMetadata.asi,
+      });
     }
 
     compiled.set(categoryKey, categoryPatterns);
   }
 
   return compiled;
+}
+
+export function countCompiledPatterns(
+  patterns: Map<string, CompiledPattern[]>,
+): number {
+  let count = 0;
+  for (const categoryPatterns of patterns.values()) {
+    count += categoryPatterns.length;
+  }
+  return count;
 }
 
 /**
