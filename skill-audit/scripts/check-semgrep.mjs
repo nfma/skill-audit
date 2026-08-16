@@ -4,41 +4,17 @@ import { createHash } from "node:crypto";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseBaselineArguments } from "./baseline-cli.mjs";
 
 const SCHEMA_VERSION = 1;
 
 function parseArguments(argv) {
-  const values = new Map();
-  let writeBaseline = false;
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
-    if (argument === "--write-baseline") {
-      writeBaseline = true;
-      continue;
-    }
-    if (!["--report", "--baseline", "--repo-root"].includes(argument)) {
-      throw new Error(`Unknown argument: ${argument}`);
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for ${argument}`);
-    }
-    values.set(argument, value);
-    index += 1;
-  }
-
-  for (const required of ["--report", "--baseline", "--repo-root"]) {
-    if (!values.has(required)) {
-      throw new Error(`Missing required argument: ${required}`);
-    }
-  }
-
+  const options = parseBaselineArguments(argv, "--repo-root");
   return {
-    baselinePath: resolve(values.get("--baseline")),
-    reportPath: resolve(values.get("--report")),
-    repoRoot: realpathSync(values.get("--repo-root")),
-    writeBaseline,
+    baselinePath: options.baselinePath,
+    reportPath: options.reportPath,
+    repoRoot: options.root,
+    writeBaseline: options.writeBaseline,
   };
 }
 
@@ -225,7 +201,8 @@ function validateBaseline(baseline) {
         `Semgrep baseline finding is not explicitly reviewed: ${findingKey(finding)}`,
       );
     }
-    const { review: _review, ...normalizedFinding } = finding;
+    const normalizedFinding = { ...finding };
+    delete normalizedFinding.review;
     return normalizedFinding;
   });
   const scanErrors = baseline.scanErrors.map((error) => {
@@ -238,7 +215,8 @@ function validateBaseline(baseline) {
         `Semgrep scan error is not explicitly reviewed: ${scanErrorKey(error)}`,
       );
     }
-    const { review: _review, ...normalizedError } = error;
+    const normalizedError = { ...error };
+    delete normalizedError.review;
     return normalizedError;
   });
 

@@ -4,9 +4,10 @@ import { createHash } from "node:crypto";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseBaselineArguments } from "./baseline-cli.mjs";
 
 const SCHEMA_VERSION = 2;
-const EXCLUDED_FINDING_DIRECTORIES = ["dist/"];
+const EXCLUDED_FINDING_DIRECTORIES = ["coverage/", "dist/"];
 const EXCLUDED_FINDING_FILES = new Set(["package-lock.json"]);
 const FINDING_BUCKETS = [
   "specFindings",
@@ -17,37 +18,12 @@ const FINDING_BUCKETS = [
 ];
 
 function parseArguments(argv) {
-  const values = new Map();
-  let writeBaseline = false;
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
-    if (argument === "--write-baseline") {
-      writeBaseline = true;
-      continue;
-    }
-    if (!["--report", "--baseline", "--skill-root"].includes(argument)) {
-      throw new Error(`Unknown argument: ${argument}`);
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for ${argument}`);
-    }
-    values.set(argument, value);
-    index += 1;
-  }
-
-  for (const required of ["--report", "--baseline", "--skill-root"]) {
-    if (!values.has(required)) {
-      throw new Error(`Missing required argument: ${required}`);
-    }
-  }
-
+  const options = parseBaselineArguments(argv, "--skill-root");
   return {
-    baselinePath: resolve(values.get("--baseline")),
-    reportPath: resolve(values.get("--report")),
-    skillRoot: realpathSync(values.get("--skill-root")),
-    writeBaseline,
+    baselinePath: options.baselinePath,
+    reportPath: options.reportPath,
+    skillRoot: options.root,
+    writeBaseline: options.writeBaseline,
   };
 }
 
@@ -117,7 +93,7 @@ function normalizeReportWithSummary(report, skillRoot) {
 
   return {
     excludedFindingCount: normalizedFindings.length - findings.length,
-    findings: findings.sort(compareFindings),
+    findings: findings.toSorted(compareFindings),
   };
 }
 

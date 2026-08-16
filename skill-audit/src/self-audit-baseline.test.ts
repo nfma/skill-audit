@@ -124,17 +124,19 @@ describe("self-audit baseline checker", () => {
     expect(result.stderr).toContain("Stale baseline entries:");
   });
 
-  it("excludes generated dist findings from the baseline", () => {
+  it("excludes generated output findings from the baseline", () => {
     const fixture = createFixture();
-    const distDirectory = join(fixture.directory, "dist");
-    const distFile = join(distDirectory, "fixture.js");
-    mkdirSync(distDirectory);
-    writeFileSync(distFile, "generated fixture\n");
     const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
-    report[0].securityFindings.push({
-      ...report[0].securityFindings[0],
-      file: distFile,
-    });
+    for (const directoryName of ["coverage", "dist"]) {
+      const generatedDirectory = join(fixture.directory, directoryName);
+      const generatedFile = join(generatedDirectory, "fixture.js");
+      mkdirSync(generatedDirectory);
+      writeFileSync(generatedFile, "generated fixture\n");
+      report[0].securityFindings.push({
+        ...report[0].securityFindings[0],
+        file: generatedFile,
+      });
+    }
     writeFileSync(fixture.reportPath, JSON.stringify(report));
 
     const writeResult = runChecker(fixture, ["--write-baseline"]);
