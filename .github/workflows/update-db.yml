@@ -34,7 +34,7 @@ jobs:
       - name: Restore vulnerability feed cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: skill-audit/.cache/skill-audit
+          path: ${{ runner.temp }}/skill-audit-cache
           key: vuln-db-feeds-${{ github.run_id }}
           restore-keys: |
             vuln-db-feeds-
@@ -49,4 +49,6 @@ jobs:
 
       - name: Update vulnerability feeds
         working-directory: ./skill-audit
+        env:
+          SKILL_AUDIT_CACHE_DIR: ${{ runner.temp }}/skill-audit-cache
         run: npm run security:update

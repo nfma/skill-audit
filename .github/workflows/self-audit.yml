@@ -44,7 +44,7 @@ jobs:
       - name: Audit the repository skill
         working-directory: skill-audit
         run: |
-          node dist/index.js --path . --no-deps --json > "$RUNNER_TEMP/self-audit.json"
+          node dist/cli.js --path . --no-deps --json > "$RUNNER_TEMP/self-audit.json"
           node scripts/check-self-audit.mjs \
             --report "$RUNNER_TEMP/self-audit.json" \
             --baseline ../.self-audit-baseline.json \

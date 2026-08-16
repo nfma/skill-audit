@@ -8,6 +8,7 @@ Security auditing tool for AI agent skills and agent execution environments.
 
 AI agent skills can execute arbitrary code, access files, and make network requests.
 Before installing a third-party skill, you need to know:
+
 - Does it try to hijack the agent's goals?
 - Does it leak your API keys or tokens?
 - Does it run dangerous scripts?
@@ -30,17 +31,21 @@ Before installing a third-party skill, you need to know:
 - **Optional compliance heuristics** — Vietnam AI Law 2026, EU AI Act, GDPR
 - **Dependency vulnerabilities** (CVE/GHSA/KEV/EPSS)
 - **Agent environment risks** — suspicious hooks, shell startup files, PATH hijacking, MCP/tool command configs, workspace instruction poisoning, and package lifecycle scripts
-- **Session context gaps** — executable skills that do not declare what agent/session facts they read, require, and write back
+- **Session context gaps** — skills that do not declare what agent/session facts they read, require, and write back
 
 ## Quick Start
 
 ```bash
-# Clone this fork and build the CLI from source
-git clone https://github.com/nfma/skill-audit.git
-cd skill-audit/skill-audit
-npm ci --ignore-scripts
-npm run build
-npm link --ignore-scripts
+# Download the immutable Node 24 executable and its checksum
+version=v0.10.0
+gh release download "$version" \
+  --repo nfma/skill-audit \
+  --pattern "skill-audit-$version.mjs" \
+  --pattern "skill-audit-$version.mjs.sha256"
+shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+mkdir -p "$HOME/.local/bin"
+install -m 0755 "skill-audit-$version.mjs" "$HOME/.local/bin/skill-audit"
+export PATH="$HOME/.local/bin:$PATH"
 
 # Audit global skills
 skill-audit -g
@@ -131,7 +136,7 @@ Sensitive operations include skill installs, package installs, remote script exe
 
 ## Session Context Contracts
 
-Executable skills can optionally declare how they interact with agent session context:
+Skills can declare how they interact with agent session context:
 
 ```yaml
 context:
@@ -149,7 +154,7 @@ context:
   confirmation: on-risk
 ```
 
-`skill-audit` treats this as an optional audit extension, not a replacement for Claude/Agent Skills required `name` and `description` frontmatter. Executable skills without this contract receive `CTX-*` findings so agents can identify missing invocation boundaries, confirmation requirements, and write-back summaries.
+`skill-audit` treats this as an audit extension, not a replacement for Claude/Agent Skills required `name` and `description` frontmatter. Skills without this contract receive `CTX-*` findings so agents can identify missing invocation boundaries, confirmation requirements, and write-back summaries.
 
 ## Sample Output
 
@@ -175,15 +180,22 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build skill-audit from Git
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Download pinned skill-audit release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git clone --depth 1 https://github.com/nfma/skill-audit.git /tmp/skill-audit
-          cd /tmp/skill-audit/skill-audit
-          npm ci --ignore-scripts
-          npm run build
-      - run: node /tmp/skill-audit/skill-audit/dist/index.js -g -t 3.0 --json > results.json
-      - uses: actions/upload-artifact@v4
+          version=v0.10.0
+          gh release download "$version" --repo nfma/skill-audit \
+            --pattern "skill-audit-$version.mjs" \
+            --pattern "skill-audit-$version.mjs.sha256" \
+            --dir "$RUNNER_TEMP/skill-audit"
+          cd "$RUNNER_TEMP/skill-audit"
+          shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+      - run: node "$RUNNER_TEMP/skill-audit/skill-audit-v0.10.0.mjs" -g -t 3.0 --json > results.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: audit-results
           path: results.json
@@ -199,7 +211,7 @@ secrets, skip the scan with a warning; a missing token on any other run fails
 the job. The workflow type-checks, tests with LCOV coverage, builds, scans, and
 waits for the quality gate.
 
-This fork is distributed from Git and is not published to npm.
+This fork publishes one tree-shaken Node 24 executable through immutable GitHub Releases and is not published to npm. Release assets include a SHA-256 checksum and a descriptor binding the executable, source commit, workflow, embedded rules, and documentation digests. The embedded-rules digest covers canonical decoded JSON: array order is retained, object keys are sorted by UTF-8 bytes, finite numbers use the RFC 8785 shortest round-trippable IEEE 754 representation, and sparse arrays or unsupported values are rejected. JSON presentation details such as whitespace, line endings, and source key order do not affect rule identity.
 
 ## Project Structure
 
@@ -216,18 +228,18 @@ This fork is distributed from Git and is not published to npm.
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
+| Package                         | Description                                                            |
+| ------------------------------- | ---------------------------------------------------------------------- |
 | [`skill-audit`](./skill-audit/) | CLI tool for auditing AI agent skills and agent execution environments |
 
 ## Risk Scoring
 
-| Level | Score | Action |
-|-------|-------|--------|
-| ✅ Safe | 0-3.0 | No issues or minor concerns |
-| ⚠️ Risky | 3.1-5.0 | Review recommended |
-| 🔴 Dangerous | 5.1-7.0 | Fix before use |
-| ☠️ Malicious | 7.1+ | Do not use |
+| Level        | Score   | Action                      |
+| ------------ | ------- | --------------------------- |
+| ✅ Safe      | 0-3.0   | No issues or minor concerns |
+| ⚠️ Risky     | 3.1-5.0 | Review recommended          |
+| 🔴 Dangerous | 5.1-7.0 | Fix before use              |
+| ☠️ Malicious | 7.1+    | Do not use                  |
 
 ## Vulnerability Intelligence
 
@@ -261,11 +273,13 @@ schtasks /create /tn "skill-audit-update" /tr "skill-audit --update-db" /sc dail
 ## Use Cases
 
 ### For Skill Authors
+
 - Validate your skill before publishing
 - Catch security issues early in development
 - Ensure Agent Skills spec compliance
 
 ### For Skill Users
+
 - Audit third-party skills before installation
 - Check agent hooks, shell config, PATH, and MCP/tool configs before invoking skills
 - Detect environment drift across agent sessions with trusted baselines
@@ -273,6 +287,7 @@ schtasks /create /tn "skill-audit-update" /tr "skill-audit --update-db" /sc dail
 - Generate security reports for compliance
 
 ### For Registries
+
 - Automated skill validation at submission
 - Risk scoring for skill discovery
 - Vulnerability monitoring across skill ecosystem
@@ -280,15 +295,18 @@ schtasks /create /tn "skill-audit-update" /tr "skill-audit --update-db" /sc dail
 ## Related Projects
 
 ### Vercel Skills Ecosystem
+
 - **[Vercel Skills](https://skills.sh)** — Agent skills registry and runtime where `skill-audit` validates submissions
 - **[Anthropic Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)** — SKILL.md specification that `skill-audit` validates against
 
 ### Security & Validation
+
 - **[AgentVeil](https://github.com/vurakit/agentveil)** — Security proxy for AI agents with PII anonymization, prompt injection protection, and compliance checking. Inspired `skill-audit`'s PII detection patterns and compliance validation framework
 - **[GoClaw](https://github.com/nextlevelbuilder/goclaw)** — Multi-agent gateway with 5-layer security (prompt injection detection, SSRF protection, shell deny patterns). Inspired `skill-audit`'s pattern-based vulnerability detection
 - **[Trivy](https://github.com/aquasecurity/trivy)** — Vulnerability scanner used by `skill-audit` for dependency CVE scanning
 
 ### Standards
+
 - **[OWASP Agentic Top 10](https://owasp.org/www-project-agentic-ai-application-security-verification-standard/)** — ASI01-ASI10 threat categories that `skill-audit` maps findings to
 
 ## License

@@ -15,6 +15,15 @@ const packageRoot = realpathSync(join(import.meta.dirname, ".."));
 const checker = join(packageRoot, "scripts", "check-self-audit.mjs");
 const temporaryDirectories: string[] = [];
 
+function readExcludedFindingFiles() {
+  const source = readFileSync(checker, "utf8");
+  const match = source.match(
+    /const EXCLUDED_FINDING_FILES = new Set\(\[([\s\S]*?)\]\);/,
+  );
+  if (!match) throw new Error("Could not read self-audit file exclusions");
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]);
+}
+
 function createFixture() {
   const directory = mkdtempSync(join(tmpdir(), "skill-audit-baseline-"));
   temporaryDirectories.push(directory);
@@ -85,6 +94,13 @@ afterEach(() => {
 });
 
 describe("self-audit baseline checker", () => {
+  it("pins exact file exclusions", () => {
+    expect(readExcludedFindingFiles()).toEqual([
+      "package-lock.json",
+      "src/generated/release-data.ts",
+    ]);
+  });
+
   it("accepts an exact reviewed baseline", () => {
     const fixture = createFixture();
     const writeResult = runChecker(fixture, ["--write-baseline"]);
@@ -137,6 +153,18 @@ describe("self-audit baseline checker", () => {
         file: generatedFile,
       });
     }
+    const generatedSourceDirectory = join(
+      fixture.directory,
+      "src",
+      "generated",
+    );
+    const generatedSource = join(generatedSourceDirectory, "release-data.ts");
+    mkdirSync(generatedSourceDirectory, { recursive: true });
+    writeFileSync(generatedSource, "generated rule data\n");
+    report[0].securityFindings.push({
+      ...report[0].securityFindings[0],
+      file: generatedSource,
+    });
     writeFileSync(fixture.reportPath, JSON.stringify(report));
 
     const writeResult = runChecker(fixture, ["--write-baseline"]);

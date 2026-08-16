@@ -1,11 +1,10 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { resolveSkillAuditCacheDir } from "./cache.js";
 
-// Cache directory - in package root (parent of src)
-const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const CACHE_DIR = join(PACKAGE_ROOT, ".cache/skill-audit/feeds");
-const METRICS_FILE = join(PACKAGE_ROOT, ".cache/skill-audit/metrics.json");
+const CACHE_ROOT = resolveSkillAuditCacheDir();
+const CACHE_DIR = join(CACHE_ROOT, "feeds");
+const METRICS_FILE = join(CACHE_ROOT, "metrics.json");
 
 /**
  * Phase 1 - Layer 3: Vulnerability Intelligence Service
@@ -67,11 +66,11 @@ export interface UpdateMetrics {
 
 // Cache configuration - differentiated by source update frequency
 const MAX_CACHE_AGE_DAYS: Record<string, number> = {
-  kev: 1,   // Daily updates - critical for actively exploited vulns
-  nvd: 1,   // Daily - official NVD database updates frequently
-  ghsa: 3,  // 3 days - GitHub Security Advisories
-  epss: 3,  // Matches FIRST.org update cycle
-  osv: 7    // Stable database - weekly acceptable
+  kev: 1, // Daily updates - critical for actively exploited vulns
+  nvd: 1, // Daily - official NVD database updates frequently
+  ghsa: 3, // 3 days - GitHub Security Advisories
+  epss: 3, // Matches FIRST.org update cycle
+  osv: 7, // Stable database - weekly acceptable
 };
 const WARN_CACHE_AGE_DAYS = 3;
 const FETCH_TIMEOUT_MS = 30000; // 30 seconds
@@ -82,18 +81,18 @@ type CacheSource = keyof typeof MAX_CACHE_AGE_DAYS;
 
 // Map internal ecosystem names to GitHub GraphQL enum values
 const GHSA_ECOSYSTEM_MAP: Record<string, string> = {
-  'npm': 'NPM',
-  'PyPI': 'PIP',
-  'pypi': 'PIP',
-  'crates.io': 'RUST',
-  'RubyGems': 'RUBYGEMS',
-  'Maven': 'MAVEN',
-  'Packagist': 'COMPOSER',
-  'Go': 'GO',
-  'NuGet': 'NUGET',
-  'Pub': 'PUB',
-  'Hex': 'ERLANG',
-  'SwiftURL': 'SWIFT',
+  npm: "NPM",
+  PyPI: "PIP",
+  pypi: "PIP",
+  "crates.io": "RUST",
+  RubyGems: "RUBYGEMS",
+  Maven: "MAVEN",
+  Packagist: "COMPOSER",
+  Go: "GO",
+  NuGet: "NUGET",
+  Pub: "PUB",
+  Hex: "ERLANG",
+  SwiftURL: "SWIFT",
 };
 
 /**
@@ -116,7 +115,7 @@ function ensureCacheDir(): void {
 async function fetchJsonWithRetry<T>(
   url: string,
   timeoutMs: number = FETCH_TIMEOUT_MS,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const externalSignal = options.signal ?? undefined;
   const { signal: _signal, ...requestOptions } = options;
@@ -126,11 +125,12 @@ async function fetchJsonWithRetry<T>(
 
     const controller = new AbortController();
     const forwardAbort = () => controller.abort(externalSignal?.reason);
-    externalSignal?.addEventListener('abort', forwardAbort, { once: true });
+    externalSignal?.addEventListener("abort", forwardAbort, { once: true });
     if (externalSignal?.aborted) forwardAbort();
     const timeoutId = setTimeout(
-      () => controller.abort(new Error(`Request timed out after ${timeoutMs}ms`)),
-      timeoutMs
+      () =>
+        controller.abort(new Error(`Request timed out after ${timeoutMs}ms`)),
+      timeoutMs,
     );
 
     try {
@@ -138,34 +138,37 @@ async function fetchJsonWithRetry<T>(
         ...requestOptions,
         signal: controller.signal,
         headers: {
-          'User-Agent': 'skill-audit/0.1.0 (Vulnerability Intelligence Scanner)',
-          ...requestOptions.headers
-        }
+          "User-Agent":
+            "skill-audit/0.1.0 (Vulnerability Intelligence Scanner)",
+          ...requestOptions.headers,
+        },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      return await response.json() as T;
+      return (await response.json()) as T;
     } catch (error) {
       throwIfFetchAborted(externalSignal);
 
       if (attempt === MAX_RETRIES - 1) {
         throw error; // Last attempt - rethrow
       }
-      
+
       // Exponential backoff: 1s, 2s, 4s
       const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
-      console.error(`Fetch failed (${url}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      console.error(
+        `Fetch failed (${url}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`,
+      );
       await waitForRetry(delay, externalSignal);
     } finally {
       clearTimeout(timeoutId);
-      externalSignal?.removeEventListener('abort', forwardAbort);
+      externalSignal?.removeEventListener("abort", forwardAbort);
     }
   }
-  
-  throw new Error('Max retries exceeded');
+
+  throw new Error("Max retries exceeded");
 }
 
 function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
@@ -173,15 +176,15 @@ function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
+      signal?.removeEventListener("abort", onAbort);
       resolve();
     }, delay);
     const onAbort = () => {
       clearTimeout(timeoutId);
-      signal?.removeEventListener('abort', onAbort);
+      signal?.removeEventListener("abort", onAbort);
       reject(fetchAbortReason(signal));
     };
-    signal?.addEventListener('abort', onAbort, { once: true });
+    signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) onAbort();
   });
 }
@@ -191,7 +194,9 @@ function throwIfFetchAborted(signal?: AbortSignal): void {
 }
 
 function fetchAbortReason(signal?: AbortSignal): Error {
-  return signal?.reason instanceof Error ? signal.reason : new Error('Fetch aborted');
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new Error("Fetch aborted");
 }
 
 /**
@@ -199,12 +204,24 @@ function fetchAbortReason(signal?: AbortSignal): Error {
  */
 function loadMetrics(): UpdateMetrics {
   if (!existsSync(METRICS_FILE)) {
-    return { lastUpdate: '', kevCount: 0, epssCount: 0, fetchDurationMs: 0, errors: [] };
+    return {
+      lastUpdate: "",
+      kevCount: 0,
+      epssCount: 0,
+      fetchDurationMs: 0,
+      errors: [],
+    };
   }
   try {
-    return JSON.parse(readFileSync(METRICS_FILE, 'utf-8')) as UpdateMetrics;
+    return JSON.parse(readFileSync(METRICS_FILE, "utf-8")) as UpdateMetrics;
   } catch {
-    return { lastUpdate: '', kevCount: 0, epssCount: 0, fetchDurationMs: 0, errors: [] };
+    return {
+      lastUpdate: "",
+      kevCount: 0,
+      epssCount: 0,
+      fetchDurationMs: 0,
+      errors: [],
+    };
   }
 }
 
@@ -215,25 +232,30 @@ function saveMetrics(metrics: UpdateMetrics): void {
   try {
     writeFileSync(METRICS_FILE, JSON.stringify(metrics, null, 2));
   } catch (error) {
-    console.error('Failed to save metrics:', error);
+    console.error("Failed to save metrics:", error);
   }
 }
 
 /**
  * Record fetch result in metrics
  */
-function recordFetchResult(source: string, count: number, durationMs: number, error?: string): void {
+function recordFetchResult(
+  source: string,
+  count: number,
+  durationMs: number,
+  error?: string,
+): void {
   const metrics = loadMetrics();
   metrics.lastUpdate = new Date().toISOString();
   metrics.fetchDurationMs += durationMs;
 
-  if (source === 'kev') {
+  if (source === "kev") {
     metrics.kevCount = count;
-  } else if (source === 'epss') {
+  } else if (source === "epss") {
     metrics.epssCount = count;
-  } else if (source === 'nvd') {
+  } else if (source === "nvd") {
     metrics.nvdCount = count;
-  } else if (source === 'ghsa') {
+  } else if (source === "ghsa") {
     metrics.ghsaCount = count;
   }
 
@@ -278,7 +300,11 @@ function normalizeCacheSource(source: string): CacheSource {
 /**
  * Check if cache is stale and return age info
  */
-export function isCacheStale(source: string): { stale: boolean; age?: number; warn: boolean } {
+export function isCacheStale(source: string): {
+  stale: boolean;
+  age?: number;
+  warn: boolean;
+} {
   const normalizedSource = normalizeCacheSource(source);
   const metaPath = getMetaPath(normalizedSource);
 
@@ -296,10 +322,10 @@ export function isCacheStale(source: string): { stale: boolean; age?: number; wa
     // Use source-specific max age
     const maxAge = MAX_CACHE_AGE_DAYS[normalizedSource];
 
-    return { 
-      stale: ageDays > maxAge, 
+    return {
+      stale: ageDays > maxAge,
       age: ageDays,
-      warn: ageDays > WARN_CACHE_AGE_DAYS
+      warn: ageDays > WARN_CACHE_AGE_DAYS,
     };
   } catch {
     return { stale: true, warn: false };
@@ -315,14 +341,14 @@ export function saveToCache(source: string, records: AdvisoryRecord[]): void {
   const metaPath = getMetaPath(normalizedSource);
 
   // Save records as JSONL
-  const lines = records.map(r => JSON.stringify(r)).join('\n');
+  const lines = records.map((r) => JSON.stringify(r)).join("\n");
   writeFileSync(cachePath, lines);
 
   // Save metadata
   const meta: CacheMetadata = {
     source: normalizedSource,
     fetchedAt: new Date().toISOString(),
-    recordCount: records.length
+    recordCount: records.length,
   };
   writeFileSync(metaPath, JSON.stringify(meta, null, 2));
 }
@@ -332,14 +358,17 @@ export function saveToCache(source: string, records: AdvisoryRecord[]): void {
  */
 function loadFromCache(source: string): AdvisoryRecord[] {
   const cachePath = getCachePath(source);
-  
+
   if (!existsSync(cachePath)) {
     return [];
   }
 
   try {
     const content = readFileSync(cachePath, "utf-8");
-    return content.split('\n').filter(Boolean).map(line => JSON.parse(line) as AdvisoryRecord);
+    return content
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as AdvisoryRecord);
   } catch {
     return [];
   }
@@ -349,34 +378,39 @@ function loadFromCache(source: string): AdvisoryRecord[] {
  * Query OSV API for vulnerabilities (using native fetch)
  * Note: Replaces curl-based approach with native Node.js HTTP
  */
-export async function queryOSV(ecosystem: string, packageName: string): Promise<AdvisoryRecord[]> {
+export async function queryOSV(
+  ecosystem: string,
+  packageName: string,
+): Promise<AdvisoryRecord[]> {
   try {
-    const data = await fetchJsonWithRetry<{ vulns?: Array<{
-      id: string;
-      aliases?: string[];
-      severity?: Array<{ type: string; score: string }>;
-      published?: string;
-      modified?: string;
-      summary?: string;
-      references?: Array<{ type: string; url: string }>;
-    }> }>('https://api.osv.dev/v1/query', FETCH_TIMEOUT_MS, {
-      method: 'POST',
+    const data = await fetchJsonWithRetry<{
+      vulns?: Array<{
+        id: string;
+        aliases?: string[];
+        severity?: Array<{ type: string; score: string }>;
+        published?: string;
+        modified?: string;
+        summary?: string;
+        references?: Array<{ type: string; url: string }>;
+      }>;
+    }>("https://api.osv.dev/v1/query", FETCH_TIMEOUT_MS, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         package: {
           name: packageName,
-          ecosystem: ecosystem
-        }
-      })
+          ecosystem: ecosystem,
+        },
+      }),
     });
 
     if (!data.vulns) {
       return [];
     }
 
-    return data.vulns.map(v => ({
+    return data.vulns.map((v) => ({
       id: v.id,
       aliases: v.aliases || [],
       source: "OSV" as const,
@@ -386,7 +420,7 @@ export async function queryOSV(ecosystem: string, packageName: string): Promise<
       published: v.published,
       modified: v.modified,
       summary: v.summary,
-      references: v.references?.map(r => r.url) || []
+      references: v.references?.map((r) => r.url) || [],
     }));
   } catch (error) {
     console.error(`OSV query failed for ${ecosystem}/${packageName}:`, error);
@@ -396,15 +430,15 @@ export async function queryOSV(ecosystem: string, packageName: string): Promise<
 
 /**
  * Query GHSA via GitHub GraphQL API
- * 
+ *
  * Note: GHSA integration requires GitHub API authentication.
  * For now, OSV provides comprehensive coverage for most ecosystems.
- * 
+ *
  * To implement GHSA:
  * 1. Get GitHub token: https://github.com/settings/tokens
  * 2. Set GITHUB_TOKEN environment variable
  * 3. Use GraphQL API with SecurityAdvisory query
- * 
+ *
  * Example:
  * ```
  * const token = process.env.GITHUB_TOKEN;
@@ -426,9 +460,12 @@ export async function queryOSV(ecosystem: string, packageName: string): Promise<
  * });
  * ```
  */
-export async function queryGHSA(ecosystem: string, packageName: string): Promise<AdvisoryRecord[]> {
+export async function queryGHSA(
+  ecosystem: string,
+  packageName: string,
+): Promise<AdvisoryRecord[]> {
   const token = process.env.GITHUB_TOKEN;
-  
+
   if (!token) {
     // GHSA requires authentication - skip silently
     // OSV provides comprehensive coverage as fallback
@@ -452,12 +489,12 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
           }>;
         };
       };
-    }>('https://api.github.com/graphql', FETCH_TIMEOUT_MS, {
-      method: 'POST',
+    }>("https://api.github.com/graphql", FETCH_TIMEOUT_MS, {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'skill-audit/0.1.0 (Vulnerability Intelligence Scanner)'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "User-Agent": "skill-audit/0.1.0 (Vulnerability Intelligence Scanner)",
       },
       body: JSON.stringify({
         query: `
@@ -479,25 +516,25 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
         `,
         variables: {
           ecosystem: GHSA_ECOSYSTEM_MAP[ecosystem] || ecosystem.toUpperCase(),
-          package: packageName
-        }
-      })
+          package: packageName,
+        },
+      }),
     });
 
     if (!data.data?.securityVulnerabilities?.nodes) {
       return [];
     }
 
-    return data.data.securityVulnerabilities.nodes.map(node => ({
+    return data.data.securityVulnerabilities.nodes.map((node) => ({
       id: node.advisory?.ghsaId || `GHSA-unknown`,
-      aliases: node.advisory?.identifiers?.map(i => i.value) || [],
+      aliases: node.advisory?.identifiers?.map((i) => i.value) || [],
       source: "GHSA" as const,
       ecosystem,
       packageName,
       severity: node.advisory?.severity || node.severity,
       published: node.advisory?.publishedAt,
       summary: node.advisory?.summary,
-      references: []
+      references: [],
     }));
   } catch (error) {
     console.error(`GHSA query failed for ${ecosystem}/${packageName}:`, error);
@@ -510,11 +547,12 @@ export async function queryGHSA(ecosystem: string, packageName: string): Promise
  */
 export async function fetchKEV(
   signal?: AbortSignal,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
 ): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
-  const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
-  
+  const url =
+    "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
+
   try {
     const data = await fetchJsonWithRetry<{
       title?: string;
@@ -533,27 +571,32 @@ export async function fetchKEV(
     }>(url, timeoutMs, { signal });
 
     if (!data.vulnerabilities) {
-      recordFetchResult('kev', 0, Date.now() - startTime, 'No vulnerabilities in response');
+      recordFetchResult(
+        "kev",
+        0,
+        Date.now() - startTime,
+        "No vulnerabilities in response",
+      );
       return [];
     }
 
-    const records = data.vulnerabilities.map(v => ({
+    const records = data.vulnerabilities.map((v) => ({
       id: v.cveID,
       aliases: [v.cveID],
       source: "KEV" as const,
       kev: true,
       published: v.dateAdded,
       summary: v.shortDescription,
-      references: v.reference ? [v.reference] : []
+      references: v.reference ? [v.reference] : [],
     }));
 
-    recordFetchResult('kev', records.length, Date.now() - startTime);
+    recordFetchResult("kev", records.length, Date.now() - startTime);
     return records;
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    recordFetchResult('kev', 0, Date.now() - startTime, errorMsg);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    recordFetchResult("kev", 0, Date.now() - startTime, errorMsg);
     console.error(`KEV fetch failed:`, error);
     return [];
   }
@@ -564,10 +607,10 @@ export async function fetchKEV(
  */
 export async function fetchEPSS(
   signal?: AbortSignal,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
 ): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
-  const url = 'https://api.first.org/data/v1/epss?limit=500&sort=epss';
+  const url = "https://api.first.org/data/v1/epss?limit=500&sort=epss";
 
   try {
     const data = await fetchJsonWithRetry<{
@@ -579,30 +622,35 @@ export async function fetchEPSS(
         epss: string;
         percentile: string;
         date: string;
-      }>
+      }>;
     }>(url, timeoutMs, { signal });
 
     if (!data.data) {
-      recordFetchResult('epss', 0, Date.now() - startTime, 'No data in response');
+      recordFetchResult(
+        "epss",
+        0,
+        Date.now() - startTime,
+        "No data in response",
+      );
       return [];
     }
 
-    const records: AdvisoryRecord[] = data.data.map(entry => ({
+    const records: AdvisoryRecord[] = data.data.map((entry) => ({
       id: entry.cve,
       aliases: [entry.cve],
       source: "EPSS" as const,
       epss: parseFloat(entry.epss),
       published: entry.date,
-      references: []
+      references: [],
     }));
 
-    recordFetchResult('epss', records.length, Date.now() - startTime);
+    recordFetchResult("epss", records.length, Date.now() - startTime);
     return records;
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    recordFetchResult('epss', 0, Date.now() - startTime, errorMsg);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    recordFetchResult("epss", 0, Date.now() - startTime, errorMsg);
     console.error(`EPSS fetch failed:`, error);
     return [];
   }
@@ -615,7 +663,7 @@ export async function fetchEPSS(
  */
 export async function fetchNVD(
   signal?: AbortSignal,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
 ): Promise<AdvisoryRecord[]> {
   const startTime = Date.now();
   const apiKey = process.env.NVD_API_KEY;
@@ -625,7 +673,8 @@ export async function fetchNVD(
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   // NVD API requires ISO8601 format without milliseconds
-  const formatDate = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const formatDate = (date: Date) =>
+    date.toISOString().replace(/\.\d{3}Z$/, "Z");
   const lastModStartDate = formatDate(yesterday);
   const lastModEndDate = formatDate(now);
 
@@ -633,11 +682,11 @@ export async function fetchNVD(
 
   try {
     const headers: Record<string, string> = {
-      'User-Agent': 'skill-audit/0.1.0 (Vulnerability Intelligence Scanner)'
+      "User-Agent": "skill-audit/0.1.0 (Vulnerability Intelligence Scanner)",
     };
 
     if (apiKey) {
-      headers['apiKey'] = apiKey;
+      headers["apiKey"] = apiKey;
     }
 
     const data = await fetchJsonWithRetry<{
@@ -685,16 +734,21 @@ export async function fetchNVD(
             url: string;
             source?: string;
           }>;
-        }
+        };
       }>;
     }>(url, timeoutMs, { headers, signal });
 
     if (!data.vulnerabilities) {
-      recordFetchResult('nvd', 0, Date.now() - startTime, 'No vulnerabilities in response');
+      recordFetchResult(
+        "nvd",
+        0,
+        Date.now() - startTime,
+        "No vulnerabilities in response",
+      );
       return [];
     }
 
-    const records = data.vulnerabilities.map(v => {
+    const records = data.vulnerabilities.map((v) => {
       // Extract CVSS score (prefer v3.1, fallback to v3.0)
       let cvss: number | undefined;
       let cvssVector: string | undefined;
@@ -713,10 +767,10 @@ export async function fetchNVD(
       }
 
       // Extract CWE
-      const cwe = v.cve.weaknesses?.[0]?.description?.map(d => d.value) || [];
+      const cwe = v.cve.weaknesses?.[0]?.description?.map((d) => d.value) || [];
 
       // Extract description as summary
-      const summary = v.cve.descriptions?.find(d => d.lang === 'en')?.value;
+      const summary = v.cve.descriptions?.find((d) => d.lang === "en")?.value;
 
       return {
         id: v.cve.id,
@@ -729,17 +783,17 @@ export async function fetchNVD(
         published: v.cve.published,
         modified: v.cve.lastModified,
         summary,
-        references: v.cve.references?.map(r => r.url) || []
+        references: v.cve.references?.map((r) => r.url) || [],
       };
     });
 
-    recordFetchResult('nvd', records.length, Date.now() - startTime);
+    recordFetchResult("nvd", records.length, Date.now() - startTime);
     return records;
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    recordFetchResult('nvd', 0, Date.now() - startTime, errorMsg);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    recordFetchResult("nvd", 0, Date.now() - startTime, errorMsg);
     console.error(`NVD fetch failed:`, error);
     return [];
   }
@@ -748,12 +802,15 @@ export async function fetchNVD(
 /**
  * Query vulnerability intelligence for a package
  */
-export async function queryIntel(ecosystem: string, packageName: string): Promise<IntelResult> {
+export async function queryIntel(
+  ecosystem: string,
+  packageName: string,
+): Promise<IntelResult> {
   const findings: AdvisoryRecord[] = [];
 
   // Check cache freshness
   const { stale, age } = isCacheStale("osv");
-  
+
   // Try OSV first (most comprehensive for package vulns)
   const osvResults = await queryOSV(ecosystem, packageName);
   findings.push(...osvResults);
@@ -765,7 +822,7 @@ export async function queryIntel(ecosystem: string, packageName: string): Promis
   return {
     findings,
     cacheAge: age,
-    stale
+    stale,
   };
 }
 
@@ -788,7 +845,7 @@ export async function getKEV(): Promise<IntelResult> {
     findings: records,
     cacheAge: age,
     stale,
-    warn
+    warn,
   };
 }
 
@@ -811,7 +868,7 @@ export async function getEPSS(): Promise<IntelResult> {
     findings: records,
     cacheAge: age,
     stale,
-    warn
+    warn,
   };
 }
 
@@ -834,7 +891,7 @@ export async function getNVD(): Promise<IntelResult> {
     findings: records,
     cacheAge: age,
     stale,
-    warn
+    warn,
   };
 }
 
@@ -853,7 +910,7 @@ export async function getGHSA(): Promise<IntelResult> {
       findings: [],
       cacheAge: age,
       stale,
-      warn
+      warn,
     };
   }
 
@@ -861,20 +918,22 @@ export async function getGHSA(): Promise<IntelResult> {
     findings: records,
     cacheAge: age,
     stale,
-    warn
+    warn,
   };
 }
 
 /**
  * Merge advisory records by alias
  */
-export function mergeByAlias(records: AdvisoryRecord[]): Map<string, AdvisoryRecord[]> {
+export function mergeByAlias(
+  records: AdvisoryRecord[],
+): Map<string, AdvisoryRecord[]> {
   const aliasMap = new Map<string, AdvisoryRecord[]>();
 
   for (const record of records) {
     // Use all IDs and aliases as keys
     const ids = [record.id, ...record.aliases];
-    
+
     for (const id of ids) {
       const key = id.toUpperCase();
       if (!aliasMap.has(key)) {
@@ -892,11 +951,11 @@ export function mergeByAlias(records: AdvisoryRecord[]): Map<string, AdvisoryRec
  */
 export function prioritizeRecords(records: AdvisoryRecord[]): AdvisoryRecord[] {
   const sourcePriority: Record<string, number> = {
-    "OSV": 1,
-    "GHSA": 2,
-    "NVD": 3,
-    "KEV": 4,
-    "EPSS": 5
+    OSV: 1,
+    GHSA: 2,
+    NVD: 3,
+    KEV: 4,
+    EPSS: 5,
   };
 
   return [...records].sort((a, b) => {
@@ -929,7 +988,7 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     kev: { success: false, count: 0 },
     epss: { success: false, count: 0 },
     nvd: { success: false, count: 0 },
-    osv: { success: false, message: '' }
+    osv: { success: false, message: "" },
   };
 
   try {
@@ -939,36 +998,48 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     }
 
     // Download KEV
-    console.log('📥 Downloading CISA KEV...');
+    console.log("📥 Downloading CISA KEV...");
     const kevRecords = await fetchKEV();
     if (kevRecords.length > 0) {
       writeFileSync(
-        join(outputDir, 'kev.json'),
-        JSON.stringify({ fetchedAt: new Date().toISOString(), records: kevRecords }, null, 2)
+        join(outputDir, "kev.json"),
+        JSON.stringify(
+          { fetchedAt: new Date().toISOString(), records: kevRecords },
+          null,
+          2,
+        ),
       );
       results.kev = { success: true, count: kevRecords.length };
       console.log(`   ✓ KEV: ${kevRecords.length} vulnerabilities`);
     }
 
     // Download EPSS
-    console.log('📥 Downloading EPSS scores...');
+    console.log("📥 Downloading EPSS scores...");
     const epssRecords = await fetchEPSS();
     if (epssRecords.length > 0) {
       writeFileSync(
-        join(outputDir, 'epss.json'),
-        JSON.stringify({ fetchedAt: new Date().toISOString(), records: epssRecords }, null, 2)
+        join(outputDir, "epss.json"),
+        JSON.stringify(
+          { fetchedAt: new Date().toISOString(), records: epssRecords },
+          null,
+          2,
+        ),
       );
       results.epss = { success: true, count: epssRecords.length };
       console.log(`   ✓ EPSS: ${epssRecords.length} scores`);
     }
 
     // Download NVD
-    console.log('📥 Downloading NIST NVD...');
+    console.log("📥 Downloading NIST NVD...");
     const nvdRecords = await fetchNVD();
     if (nvdRecords.length > 0) {
       writeFileSync(
-        join(outputDir, 'nvd.json'),
-        JSON.stringify({ fetchedAt: new Date().toISOString(), records: nvdRecords }, null, 2)
+        join(outputDir, "nvd.json"),
+        JSON.stringify(
+          { fetchedAt: new Date().toISOString(), records: nvdRecords },
+          null,
+          2,
+        ),
       );
       results.nvd = { success: true, count: nvdRecords.length };
       console.log(`   ✓ NVD: ${nvdRecords.length} CVEs`);
@@ -978,9 +1049,12 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
     // Users would need to query OSV API per-package
     results.osv = {
       success: true,
-      message: 'OSV uses on-demand API queries (not bulk download). Use OSV CLI for offline scanning.'
+      message:
+        "OSV uses on-demand API queries (not bulk download). Use OSV CLI for offline scanning.",
     };
-    console.log('   ℹ️  OSV: Query-based API (use OSV CLI for offline scanning)');
+    console.log(
+      "   ℹ️  OSV: Query-based API (use OSV CLI for offline scanning)",
+    );
 
     // Save metadata
     const metadata = {
@@ -990,15 +1064,19 @@ export async function downloadOfflineDB(outputDir: string): Promise<{
         kev: MAX_CACHE_AGE_DAYS.kev,
         epss: MAX_CACHE_AGE_DAYS.epss,
         nvd: MAX_CACHE_AGE_DAYS.nvd,
-        osv: MAX_CACHE_AGE_DAYS.osv
-      }
+        osv: MAX_CACHE_AGE_DAYS.osv,
+      },
     };
-    writeFileSync(join(outputDir, 'metadata.json'), JSON.stringify(metadata, null, 2));
+    writeFileSync(
+      join(outputDir, "metadata.json"),
+      JSON.stringify(metadata, null, 2),
+    );
 
-    console.log('\n✅ Offline databases downloaded to:', outputDir);
+    console.log("\n✅ Offline databases downloaded to:", outputDir);
   } catch (error) {
-    console.error('❌ Download failed:', error);
-    results.osv.message = error instanceof Error ? error.message : 'Download error';
+    console.error("❌ Download failed:", error);
+    results.osv.message =
+      error instanceof Error ? error.message : "Download error";
   }
 
   return results;

@@ -1,6 +1,8 @@
 # Postinstall Safety Documentation Pattern
 
-This reference documents how to properly explain and document a safe `postinstall` script in an npm package to prevent false positive security findings.
+This generic reference documents how to explain and audit a safe `postinstall`
+script in an npm package without creating false-positive security findings. It
+does not describe the GitHub Release executable, which has no install lifecycle.
 
 ## When to Use This Pattern
 
@@ -13,7 +15,7 @@ Use this pattern when your npm package:
 ## Problem
 
 Security scanning tools (like skill-audit) may flag `postinstall` scripts as potentially malicious because:
-1. They run automatically after `npm install`
+1. A target package runs them automatically after `npm install`
 2. They can execute arbitrary code
 3. Attackers could use them for supply chain attacks
 
@@ -28,7 +30,7 @@ Add a clear explanation in your README:
 ```markdown
 ## About the Postinstall Script
 
-This package includes a `postinstall` script that runs automatically after `npm install`. **This script is completely safe and informational only:**
+`<package-name>` includes a `postinstall` script that runs automatically after `npm install`. **This script is informational only:**
 
 - ✅ Does NOT automatically install any hooks
 - ✅ Does NOT execute any code that could be considered malicious
@@ -50,7 +52,7 @@ Create a dedicated security policy:
 
 ### Postinstall Script Safety
 
-This package includes a `postinstall` script that runs automatically after installation.
+`<package-name>` includes a `postinstall` script that runs automatically after installation.
 
 **What the postinstall does:**
 - Checks environment (CI detection)

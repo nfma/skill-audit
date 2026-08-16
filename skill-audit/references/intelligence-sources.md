@@ -255,21 +255,27 @@ OSV is an open-source vulnerability database that aggregates vulnerability data 
 
 ### Cache Location
 
-```
-.cache/skill-audit/feeds/
-├── kev.json
-├── nvd.json
-└── epss.json
-```
+`skill-audit` resolves its cache root in this order:
+
+1. the absolute path in `SKILL_AUDIT_CACHE_DIR`, when set;
+2. the platform user cache directory: `~/Library/Caches/skill-audit` on
+   macOS, `$XDG_CACHE_HOME/skill-audit` or `~/.cache/skill-audit` on Linux,
+   and `%LOCALAPPDATA%\skill-audit` on Windows;
+3. an explicit runner-temporary path in CI. The repository update workflow
+   sets `SKILL_AUDIT_CACHE_DIR` to `$RUNNER_TEMP/skill-audit-cache`.
+
+Feed data is stored below the resolved root's `feeds/` directory, and update
+metrics are stored in `metrics.json` at the root. Package-local and repository
+cache paths are not supported.
 
 ### Cache Update
 
 ```bash
 # Manual update
-npx skill-audit --update-db
+skill-audit --update-db
 
 # Update specific sources
-npx skill-audit --update-db --source kev epss nvd
+skill-audit --update-db --source kev epss nvd
 ```
 
 These caches support feed maintenance and snapshot export. Ordinary audit reports do not read them or emit cache-staleness warnings.

@@ -9,28 +9,45 @@ Security auditing CLI for AI agent skills.
 - **Risk Scoring**: 0-10 score mapped to OWASP Agentic Top 10 (ASI01-ASI10)
 - **Multi-Agent Support**: Groups results by agent (Claude Code, Qwen Code, Gemini CLI, etc.)
 - **Agent Environment Doctor**: Detect risky hooks, shell startup files, PATH hijacking, MCP/tool configs, and workspace lifecycle scripts
-- **Session Context Contracts**: Warn when executable skills do not declare what agent/session facts they read, require, and write back
+- **Session Context Contracts**: Warn when skills do not declare what agent/session facts they read, require, and write back
 - **CI/CD Ready**: JSON output, threshold-based pass/fail
 
 ## Installation
 
-### Option 1: Install the CLI from Git
+### Install the executable
 
 ```bash
-git clone https://github.com/nfma/skill-audit.git
-cd skill-audit/skill-audit
-npm ci --ignore-scripts
-npm run build
-npm link --ignore-scripts
+version=v0.10.0
+gh release download "$version" \
+  --repo nfma/skill-audit \
+  --pattern "skill-audit-$version.mjs" \
+  --pattern "skill-audit-$version.mjs.sha256"
+shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+install -m 0755 "skill-audit-$version.mjs" "$HOME/.local/bin/skill-audit"
 ```
 
-This fork is distributed from Git and is not published to npm. The commands
-above build the checked-out source and link its `skill-audit` executable.
+The release executable requires Node 24 or newer. It is a single tree-shaken
+`.mjs` file: no npm install, local build, archive, or extraction step is
+required. Immutable GitHub Releases are the only publication channel; this
+fork is not published to npm.
 
-### Option 2: Install as a Skill (For Claude Code)
+Each release also contains a SHA-256 file and a deterministic descriptor that
+binds the executable to its source commit, release workflow, embedded rules,
+and documentation digests. `embeddedRulesSha256` is computed from canonical
+UTF-8 JSON of the decoded rules: arrays retain order; object keys are sorted by
+UTF-8 bytes; strings, booleans, `null`, and finite numbers use JSON scalar
+encoding. Finite numbers follow RFC 8785 number serialization: the shortest
+round-trippable IEEE 754 representation used by ECMAScript, with negative zero
+encoded as `0`. Sparse arrays, unsupported values, non-finite numbers, and
+non-plain objects are rejected. Whitespace, line endings, and source object-key
+order therefore do not change rule identity. Maintainers accepting an upgrade
+should inspect the release with `gh release view` and verify the asset
+provenance with `gh attestation verify` against the pinned repository.
+
+### Install the human-readable skill
 
 ```bash
-# Install the nested skill from this GitHub fork (not an npm package name)
+# Install the nested skill documentation from this GitHub fork.
 npx skills add nfma/skill-audit --skill skill-audit -g -y
 ```
 
@@ -39,74 +56,13 @@ npx skills add nfma/skill-audit --skill skill-audit -g -y
 > - ✅ Correct: `nfma/skill-audit`
 > - ❌ Incorrect: `@hungpg/skill-audit`
 
-### Option 3: Install for Qwen Code
-
-Keep the Git checkout outside Qwen's skills directory, build the inner package,
-then link that package at the discovery path:
-
-```bash
-mkdir -p "$HOME/.local/share"
-if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
-  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
-fi
-cd "$HOME/.local/share/skill-audit/skill-audit"
-npm ci --ignore-scripts
-npm run build
-
-skill_source="$HOME/.local/share/skill-audit/skill-audit"
-skill_target="$HOME/.qwen/skills/skill-audit"
-mkdir -p "$(dirname "$skill_target")"
-if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
-  echo "Move the existing $skill_target aside before continuing." >&2
-  exit 1
-fi
-ln -s "$skill_source" "$skill_target"
-```
-
-A pre-existing `~/.qwen/skills/skill-audit` must be moved aside first; otherwise
-`ln -s` can silently create the link inside the old directory. If Qwen Code
-does not follow symlinks in your environment, run the same commands through
-the target check but use a copy instead of `ln -s`:
-
-```bash
-cp -R "$skill_source" "$skill_target"
-```
-
-### Option 4: Install for Gemini CLI
-
-Reuse the same checkout outside the harness skills roots, or clone it there if
-you did not complete Option 3:
-
-```bash
-mkdir -p "$HOME/.local/share"
-if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
-  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
-fi
-cd "$HOME/.local/share/skill-audit/skill-audit"
-npm ci --ignore-scripts
-npm run build
-
-skill_source="$HOME/.local/share/skill-audit/skill-audit"
-skill_target="$HOME/.gemini/skills/skill-audit"
-mkdir -p "$(dirname "$skill_target")"
-if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
-  echo "Move the existing $skill_target aside before continuing." >&2
-  exit 1
-fi
-ln -s "$skill_source" "$skill_target"
-```
-
-A pre-existing `~/.gemini/skills/skill-audit` must be moved aside first. If
-Gemini CLI does not follow symlinks in your environment, run the same commands
-through the target check but use a copy instead of `ln -s`:
-
-```bash
-cp -R "$skill_source" "$skill_target"
-```
+Agent harnesses need the ordinary `SKILL.md` and `references/` files; they
+cannot discover those documents inside the executable. The executable and the
+human-readable skill are therefore installed separately.
 
 ## About the Postinstall Script
 
-This package includes a `postinstall` script that runs automatically after `npm install`. **This script is completely safe and informational only:**
+Source developers who run `npm install` in a checkout will invoke this package's informational `postinstall` script. Release-executable users do not run it. **This script is completely safe and informational only:**
 
 - ✅ Does NOT automatically install any hooks
 - ✅ Does NOT execute any code that could be considered malicious
@@ -118,9 +74,11 @@ The script simply displays a banner message prompting users to optionally run `s
 
 In CI environments (GitHub Actions, GitLab CI, Jenkins, etc.), the script exits silently without displaying anything.
 
-## Automatic Hook Setup
+## Source-checkout Hook Setup
 
-After installation, you'll see a message about setting up the PreToolUse hook:
+Developers who run `npm install` in a source checkout may see this message
+about setting up the PreToolUse hook. Installing the GitHub Release executable
+does not run `postinstall` and does not display this banner:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -269,7 +227,7 @@ skill-audit --check-command "curl https://example.test/install.sh | bash" --bloc
 
 ## Session Context Contracts
 
-Executable skills can declare how they interact with agent session context. `skill-audit` warns when a skill can run shell/tool behavior but does not declare this contract.
+Skills can declare how they interact with agent session context. `skill-audit` reports missing contracts universally rather than attempting to infer capability from tool names or prose.
 
 Example frontmatter:
 
@@ -291,7 +249,7 @@ context:
 
 Context checks include:
 
-- `CTX-001`: executable skill has no context contract
+- `CTX-001`: skill has no context contract
 - `CTX-002`: missing declared session facts read by the skill
 - `CTX-003`: missing invocation preconditions
 - `CTX-004`: missing write-back summary fields
@@ -300,47 +258,47 @@ Context checks include:
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-g, --global` | Audit global skills | ✓ |
-| `-p, --project` | Audit project-level skills | |
-| `--path <paths...>` | Audit explicit skill directories instead of discovery | |
-| `-a, --agent <agents...>` | Filter by agent names | |
-| `-x, --exclude-skill <names...>` | Exclude skills by name | |
-| `--mode <mode>` | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env` | audit |
-| `-t, --threshold <score>` | Set the risk threshold used with `--block` | unset (3.0 with `--block`) |
-| `-j, --json` | JSON output | |
-| `-o, --output <file>` | Save to file | |
-| `--no-deps` | Skip dependency scan | |
-| `--compliance` | Run opt-in documentation heuristics in audit mode | |
-| `--update-db` | Update the KEV, EPSS, and NVD maintenance caches | |
-| `--source <sources...>` | Select `kev`, `epss`, `nvd`, or `all` for `--update-db` | all |
-| `--strict` | Exit 1 if a feed update fails; requires `--update-db` | |
-| `--quiet` | Suppress non-error output | |
-| `--download-offline-db <dir>` | Export KEV, EPSS, and NVD snapshots | |
-| `--check-command <command>` | Classify a shell command and check environment drift if sensitive | |
-| `-v, --verbose` | Verbose output | |
-| `--install-hook` | Install PreToolUse hook | |
-| `--uninstall-hook` | Remove PreToolUse hook | |
-| `--hook-threshold <score>` | Hook risk threshold | 3.0 |
-| `--hook-status` | Show hook status | |
-| `--block` | Exit 1 for a high/critical blocking finding or when the threshold is met | |
+| Flag                             | Description                                                              | Default                    |
+| -------------------------------- | ------------------------------------------------------------------------ | -------------------------- |
+| `-g, --global`                   | Audit global skills                                                      | ✓                          |
+| `-p, --project`                  | Audit project-level skills                                               |                            |
+| `--path <paths...>`              | Audit explicit skill directories instead of discovery                    |                            |
+| `-a, --agent <agents...>`        | Filter by agent names                                                    |                            |
+| `-x, --exclude-skill <names...>` | Exclude skills by name                                                   |                            |
+| `--mode <mode>`                  | `lint`, `audit`, `doctor`, `trust-env`, or `diff-env`                    | audit                      |
+| `-t, --threshold <score>`        | Set the risk threshold used with `--block`                               | unset (3.0 with `--block`) |
+| `-j, --json`                     | JSON output                                                              |                            |
+| `-o, --output <file>`            | Save to file                                                             |                            |
+| `--no-deps`                      | Skip dependency scan                                                     |                            |
+| `--compliance`                   | Run opt-in documentation heuristics in audit mode                        |                            |
+| `--update-db`                    | Update the KEV, EPSS, and NVD maintenance caches                         |                            |
+| `--source <sources...>`          | Select `kev`, `epss`, `nvd`, or `all` for `--update-db`                  | all                        |
+| `--strict`                       | Exit 1 if a feed update fails; requires `--update-db`                    |                            |
+| `--quiet`                        | Suppress non-error output                                                |                            |
+| `--download-offline-db <dir>`    | Export KEV, EPSS, and NVD snapshots                                      |                            |
+| `--check-command <command>`      | Classify a shell command and check environment drift if sensitive        |                            |
+| `-v, --verbose`                  | Verbose output                                                           |                            |
+| `--install-hook`                 | Install PreToolUse hook                                                  |                            |
+| `--uninstall-hook`               | Remove PreToolUse hook                                                   |                            |
+| `--hook-threshold <score>`       | Hook risk threshold                                                      | 3.0                        |
+| `--hook-status`                  | Show hook status                                                         |                            |
+| `--block`                        | Exit 1 for a high/critical blocking finding or when the threshold is met |                            |
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success (no blocking issues) |
-| 1 | Blocking finding, threshold met, strict update failure, or command error |
+| Code | Meaning                                                                  |
+| ---- | ------------------------------------------------------------------------ |
+| 0    | Success (no blocking issues)                                             |
+| 1    | Blocking finding, threshold met, strict update failure, or command error |
 
 ## Risk Levels
 
-| Level | Score | Icon |
-|-------|-------|------|
-| Safe | 0 | ✅ |
-| Risky | 0.1-3.0 | ⚠️ |
-| Dangerous | 3.1-7.0 | 🔴 |
-| Malicious | 7.1+ | ☠️ |
+| Level     | Score   | Icon |
+| --------- | ------- | ---- |
+| Safe      | 0       | ✅   |
+| Risky     | 0.1-3.0 | ⚠️   |
+| Dangerous | 3.1-7.0 | 🔴   |
+| Malicious | 7.1+    | ☠️   |
 
 ## OWASP Agentic Top 10 Mapping
 
@@ -353,15 +311,16 @@ Context checks include:
 
 The maintenance commands can download vulnerability-intelligence snapshots:
 
-| Source | Current behavior |
-|--------|------------------|
-| CISA KEV | Downloaded by `--update-db` and `--download-offline-db` |
-| NIST NVD | Downloads CVEs modified in the preceding 24 hours |
-| FIRST EPSS | Downloaded by `--update-db` and `--download-offline-db` |
-| OSV.dev | Queried live by dependency scanning; not cached by `--update-db` |
-| GHSA | Query helper exists but is not wired into ordinary audits |
+| Source     | Current behavior                                                 |
+| ---------- | ---------------------------------------------------------------- |
+| CISA KEV   | Downloaded by `--update-db` and `--download-offline-db`          |
+| NIST NVD   | Downloads CVEs modified in the preceding 24 hours                |
+| FIRST EPSS | Downloaded by `--update-db` and `--download-offline-db`          |
+| OSV.dev    | Queried live by dependency scanning; not cached by `--update-db` |
+| GHSA       | Query helper exists but is not wired into ordinary audits        |
 
 **Feed refresh:**
+
 - Daily root GitHub Actions workflow maintains a CI cache
 - Manual: `skill-audit --update-db`
 - Audits and the informational postinstall script do not refresh feeds in the background
