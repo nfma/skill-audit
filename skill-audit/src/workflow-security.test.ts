@@ -146,12 +146,14 @@ describe("Dependabot auto-merge boundary", () => {
     expect(metadata).toContain(
       "dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0",
     );
-    expect(merge).toContain("package-ecosystem == 'npm'");
+    expect(merge).toContain("package-ecosystem == 'npm_and_yarn'");
+    expect(merge).not.toContain("package-ecosystem == 'npm'");
     expect(merge).not.toContain("package-ecosystem == 'github-actions'");
     expect(merge).toContain("update-type == 'version-update:semver-patch'");
     expect(merge).toContain("update-type == 'version-update:semver-minor'");
     expect(merge).not.toContain("version-update:semver-major");
-    expect(manual).toContain("package-ecosystem != 'npm'");
+    expect(manual).toContain("package-ecosystem != 'npm_and_yarn'");
+    expect(manual).not.toContain("package-ecosystem != 'npm'");
     expect(manual).toContain("update-type != 'version-update:semver-patch'");
     expect(manual).toContain("update-type != 'version-update:semver-minor'");
     expect(manual).not.toContain("gh pr merge");
