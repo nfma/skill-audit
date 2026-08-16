@@ -139,6 +139,18 @@ describe("release descriptor", () => {
     );
   });
 
+  it("rejects non-object descriptors and unsorted documentation records", () => {
+    expect(() => assertReleaseDescriptor(null)).toThrow(
+      "Release descriptor must be an object",
+    );
+
+    const descriptor = releaseDescriptorFixture();
+    descriptor.documentation.files.reverse();
+    expect(() => assertReleaseDescriptor(descriptor)).toThrow(
+      "invalid documentation ordering",
+    );
+  });
+
   it("refuses to create a descriptor from an inconsistent documentation set", () => {
     const documentation = computeDocumentationDigests(documentationFixture());
     documentation.upstreamDocsSha256 = "d".repeat(64);
