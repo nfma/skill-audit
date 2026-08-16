@@ -344,6 +344,37 @@ describe("advisory response normalization", () => {
             },
           ],
         }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          resultsPerPage: 1,
+          startIndex: 0,
+          totalResults: 1,
+          format: "NVD_CVE",
+          version: "2.0",
+          vulnerabilities: [
+            {
+              cve: {
+                id: "CVE-2026-0003",
+                published: "2026-08-06",
+                lastModified: "2026-08-07",
+                vulnerabilityStatus: "Analyzed",
+                metrics: {
+                  cvssMetricV30: [
+                    {
+                      cvssData: {
+                        version: "3.0",
+                        vectorString: "CVSS:3.0/AV:L/AC:H",
+                        baseScore: 4.2,
+                        baseSeverity: "MEDIUM",
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        }),
       );
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("NVD_API_KEY", "fixture-key");
@@ -368,9 +399,20 @@ describe("advisory response normalization", () => {
         references: ["https://nvd.nist.gov/vuln/fixture"],
       }),
     ]);
+    await expect(fetchNVD()).resolves.toEqual([
+      expect.objectContaining({
+        id: "CVE-2026-0003",
+        cvss: 4.2,
+        cvssVector: "CVSS:3.0/AV:L/AC:H",
+        severity: "MEDIUM",
+        cwe: [],
+        references: [],
+      }),
+    ]);
     expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({
       headers: expect.objectContaining({ apiKey: "fixture-key" }),
     });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("fails closed when bulk feeds omit their record arrays", async () => {
