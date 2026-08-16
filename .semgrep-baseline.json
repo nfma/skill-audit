@@ -126,7 +126,7 @@
       "path": "skill-audit/src/intel.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "23a60e79b73cafd82319c6729e61f34c166e3139be38b6b8436cb46eab1f49d4",
+      "sourceSha256": "78e1143d6f1c19b5d416871fdad11ba76ab9043d51a7ee8c88da94fc491266bf",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -150,7 +150,7 @@
       "path": "skill-audit/src/intel.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "457c127264a0169db144e87d5c1e8ad9ed2ac676ba4b5aff246047fde05d6f67",
+      "sourceSha256": "85416d380fceafec715552851656d5e2012e0f3eda37b19de52544669ae022d8",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -174,7 +174,7 @@
       "path": "skill-audit/src/intel.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "5d6dd0f93a63a595a42b32dae70016306d87e77a343d9859903286dc0be49fde",
+      "sourceSha256": "b52c7a8306be85b69245610ad4a5c00c927bb07d0df68ae465e41db6f14725c4",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -186,7 +186,7 @@
       "path": "skill-audit/src/intel.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "9caa0f10bcffb5d545e513e2be8f6f80a3055aad1dfa5e7cbf7a1d455c44b6a5",
+      "sourceSha256": "f71706ae645edd3a74d396061401944dc3160658ec7fa00ada7e7623eecd52e1",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -222,7 +222,7 @@
       "path": "skill-audit/src/spec.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "c67d770a258a13b608b4df4a19827c2ad2d631950d1d988d41384a681a70aa03",
+      "sourceSha256": "01091ed9c147159b08cc40cc0bae93b7a434faa8304aa097cb3fb75a05715c84",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -246,7 +246,7 @@
       "path": "skill-audit/src/index.ts",
       "severity": "INFO",
       "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
-      "sourceSha256": "2e8cb3b34053754ed8e5c79a0fe16aa0a54f044f3175073765ab5307ca01c7d6",
+      "sourceSha256": "cfa8b26bcfa479d56eb13dc04fe60fe54de8561397e8bb5f4c47b99644356172",
       "count": 1,
       "review": {
         "status": "reviewed",
@@ -313,20 +313,16 @@
       "level": "warn",
       "type": "PartialParsing",
       "path": "skill-audit/src/security.ts",
-      "message": "Syntax error at line skill-audit/src/security.ts:72:\n `/` was unexpected",
+      "message": "Syntax error at line skill-audit/src/security.ts:121:\n `/<!--[\\s\\S]*?-->/g,\n    id:` was unexpected",
       "sources": [
         {
           "path": "skill-audit/src/security.ts",
-          "sourceSha256": "21e8f1825537758706e251a51ad73758a196d34a0bdbbd60b4c2bf532a141773"
-        },
-        {
-          "path": "skill-audit/src/security.ts",
-          "sourceSha256": "8fa608acffea781404506ce878c4660c8e4b957464f84b56a441a8eda74ec51e"
+          "sourceSha256": "a83fbf1e7c2e8cba6f6d423eba74f12fa0c3c5372c46aa3241c76a14035e625d"
         }
       ],
       "review": {
         "status": "reviewed",
-        "rationale": "Semgrep 1.173 partially parses the valid HTML-comment detector regular expression and reports a cascading warning; TypeScript typechecking, build, and security regression tests compile and execute this source."
+        "rationale": "Semgrep 1.173 partially parses the valid HTML-comment detector regular expression and reports a cascading warning; TypeScript typechecking, build, and security regression tests compile and execute this source. Formatter-only commit ffa7286 expanded the same PI09 regex object, moving the line and producing one more specific source span."
       }
     }
   ]

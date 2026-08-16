@@ -47,8 +47,8 @@ jobs:
 
       - name: Test CLI
         working-directory: ./skill-audit
-        run: node dist/index.js --help
+        run: node dist/cli.js --help
 
       - name: Run lint mode (smoke test)
         working-directory: ./skill-audit
-        run: node dist/index.js --mode lint --path . --json > /dev/null
+        run: node dist/cli.js --mode lint --path . --json > /dev/null

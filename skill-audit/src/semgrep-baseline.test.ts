@@ -1,5 +1,6 @@
 import {
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -13,6 +14,15 @@ import { afterEach, describe, expect, it } from "vitest";
 const packageRoot = realpathSync(join(import.meta.dirname, ".."));
 const checker = join(packageRoot, "scripts", "check-semgrep.mjs");
 const temporaryDirectories: string[] = [];
+
+function readExcludedFindingFiles() {
+  const source = readFileSync(checker, "utf8");
+  const match = source.match(
+    /const EXCLUDED_FINDING_FILES = new Set\(\[([\s\S]*?)\]\);/,
+  );
+  if (!match) throw new Error("Could not read Semgrep file exclusions");
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]);
+}
 
 function createFixture() {
   const directory = mkdtempSync(join(tmpdir(), "skill-audit-semgrep-"));
@@ -83,6 +93,12 @@ afterEach(() => {
 });
 
 describe("Semgrep baseline checker", () => {
+  it("pins exact file exclusions", () => {
+    expect(readExcludedFindingFiles()).toEqual([
+      "skill-audit/src/generated/release-data.ts",
+    ]);
+  });
+
   it("accepts an exact reviewed baseline", () => {
     const fixture = createFixture();
     const writeResult = runChecker(fixture, ["--write-baseline"]);
@@ -106,6 +122,32 @@ describe("Semgrep baseline checker", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("is not explicitly reviewed");
+  });
+
+  it("excludes the embedded generated rule data", () => {
+    const fixture = createFixture();
+    const generatedDirectory = join(
+      fixture.directory,
+      "skill-audit",
+      "src",
+      "generated",
+    );
+    const generatedPath = join(generatedDirectory, "release-data.ts");
+    mkdirSync(generatedDirectory, { recursive: true });
+    writeFileSync(generatedPath, "generated rule data\n");
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.results.push({
+      ...report.results[0],
+      path: "skill-audit/src/generated/release-data.ts",
+    });
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture, ["--write-baseline"]);
+    expect(result.status, result.stderr).toBe(0);
+    const baseline = JSON.parse(readFileSync(fixture.baselinePath, "utf8"));
+
+    expect(baseline.findings).toHaveLength(1);
+    expect(baseline.findings[0].path).toBe("fixture.ts");
   });
 
   it("fails on both new findings and stale reviewed entries", () => {

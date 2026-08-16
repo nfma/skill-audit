@@ -12,6 +12,14 @@ const dependabotWorkflow = readFileSync(
   join(packageRoot, "..", ".github", "workflows", "dependabot-auto-merge.yml"),
   "utf8",
 );
+const releaseWorkflow = readFileSync(
+  join(packageRoot, "..", ".github", "workflows", "release.yml"),
+  "utf8",
+);
+const updateDbWorkflow = readFileSync(
+  join(packageRoot, "..", ".github", "workflows", "update-db.yml"),
+  "utf8",
+);
 
 function workflowStep(name: string): string {
   const marker = `      - name: ${name}\n`;
@@ -94,5 +102,47 @@ describe("Dependabot auto-merge boundary", () => {
       'gh pr merge --repo "$GH_REPO" --auto --squash "$PR_NUMBER"',
     );
     expect(dependabotWorkflow).not.toMatch(/--merge\b|--rebase\b/);
+  });
+});
+
+describe("GitHub Release integrity boundary", () => {
+  it("builds the executable once and validates the same handoff artifact", () => {
+    expect(releaseWorkflow.match(/npm run build:release/g)).toHaveLength(1);
+    expect(releaseWorkflow).toContain("needs: [build, validate, attest]");
+    expect(releaseWorkflow).toContain(
+      "name: ${{ needs.build.outputs.artifact-name }}",
+    );
+    expect(releaseWorkflow).toContain("os: [ubuntu-latest, macos-latest]");
+
+    const publishJob = releaseWorkflow.slice(
+      releaseWorkflow.indexOf("\n  publish:"),
+    );
+    expect(publishJob).not.toContain("build:release");
+    expect(publishJob).not.toContain("esbuild");
+    expect(publishJob).toContain("Reverify exact bytes before publication");
+  });
+
+  it("attests before publishing with narrowly scoped permissions", () => {
+    expect(releaseWorkflow).toContain("permissions: {}\n");
+    expect(releaseWorkflow).toContain(
+      "id-token: write\n      attestations: write\n      artifact-metadata: write",
+    );
+    expect(releaseWorkflow).toContain(
+      "publish:\n    name: Publish the validated GitHub Release",
+    );
+    expect(releaseWorkflow).toContain(
+      "permissions:\n      contents: write\n    steps:",
+    );
+    expect(releaseWorkflow).toContain("gh release create");
+    expect(releaseWorkflow).toContain("--draft");
+    expect(releaseWorkflow).toContain("gh release verify");
+  });
+
+  it("keeps advisory refresh unable to mutate release assets", () => {
+    expect(updateDbWorkflow).toContain("permissions:\n  contents: read");
+    expect(updateDbWorkflow).not.toContain("contents: write");
+    expect(updateDbWorkflow).not.toContain("gh release");
+    expect(updateDbWorkflow).toContain("SKILL_AUDIT_CACHE_DIR:");
+    expect(updateDbWorkflow).not.toContain("skill-audit/.cache/skill-audit");
   });
 });

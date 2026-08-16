@@ -30,20 +30,22 @@ Before installing a third-party skill, you need to know:
 - **Optional compliance heuristics** — Vietnam AI Law 2026, EU AI Act, GDPR
 - **Dependency vulnerabilities** (CVE/GHSA/KEV/EPSS)
 - **Agent environment risks** — suspicious hooks, shell startup files, PATH hijacking, MCP/tool command configs, workspace instruction poisoning, and package lifecycle scripts
-- **Session context gaps** — executable skills that do not declare what agent/session facts they read, require, and write back
+- **Session context gaps** — skills that do not declare what agent/session facts they read, require, and write back
 
 ## Quick Start
 
 ```bash
-# Clone this fork and build the CLI from source
-git clone https://github.com/nfma/skill-audit.git
-cd skill-audit/skill-audit
-npm ci --ignore-scripts
-npm run build
-npm link --ignore-scripts
+# Download the immutable Node 24 executable and its checksum
+version=v0.10.0
+gh release download "$version" \
+  --repo nfma/skill-audit \
+  --pattern "skill-audit-$version.mjs" \
+  --pattern "skill-audit-$version.mjs.sha256"
+shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+chmod 0755 "skill-audit-$version.mjs"
 
 # Audit global skills
-skill-audit -g
+./skill-audit-v0.10.0.mjs -g
 
 # Lint mode (spec validation only - fast)
 skill-audit --mode lint
@@ -131,7 +133,7 @@ Sensitive operations include skill installs, package installs, remote script exe
 
 ## Session Context Contracts
 
-Executable skills can optionally declare how they interact with agent session context:
+Skills can declare how they interact with agent session context:
 
 ```yaml
 context:
@@ -149,7 +151,7 @@ context:
   confirmation: on-risk
 ```
 
-`skill-audit` treats this as an optional audit extension, not a replacement for Claude/Agent Skills required `name` and `description` frontmatter. Executable skills without this contract receive `CTX-*` findings so agents can identify missing invocation boundaries, confirmation requirements, and write-back summaries.
+`skill-audit` treats this as an audit extension, not a replacement for Claude/Agent Skills required `name` and `description` frontmatter. Skills without this contract receive `CTX-*` findings so agents can identify missing invocation boundaries, confirmation requirements, and write-back summaries.
 
 ## Sample Output
 
@@ -175,15 +177,22 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build skill-audit from Git
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Download pinned skill-audit release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git clone --depth 1 https://github.com/nfma/skill-audit.git /tmp/skill-audit
-          cd /tmp/skill-audit/skill-audit
-          npm ci --ignore-scripts
-          npm run build
-      - run: node /tmp/skill-audit/skill-audit/dist/index.js -g -t 3.0 --json > results.json
-      - uses: actions/upload-artifact@v4
+          version=v0.10.0
+          gh release download "$version" --repo nfma/skill-audit \
+            --pattern "skill-audit-$version.mjs" \
+            --pattern "skill-audit-$version.mjs.sha256" \
+            --dir "$RUNNER_TEMP/skill-audit"
+          cd "$RUNNER_TEMP/skill-audit"
+          shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+      - run: node "$RUNNER_TEMP/skill-audit/skill-audit-v0.10.0.mjs" -g -t 3.0 --json > results.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: audit-results
           path: results.json
@@ -199,7 +208,7 @@ secrets, skip the scan with a warning; a missing token on any other run fails
 the job. The workflow type-checks, tests with LCOV coverage, builds, scans, and
 waits for the quality gate.
 
-This fork is distributed from Git and is not published to npm.
+This fork publishes one tree-shaken Node 24 executable through immutable GitHub Releases and is not published to npm. Release assets include a SHA-256 checksum and a descriptor binding the executable, source commit, workflow, embedded rules, and documentation digests.
 
 ## Project Structure
 

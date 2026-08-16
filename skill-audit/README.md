@@ -9,28 +9,37 @@ Security auditing CLI for AI agent skills.
 - **Risk Scoring**: 0-10 score mapped to OWASP Agentic Top 10 (ASI01-ASI10)
 - **Multi-Agent Support**: Groups results by agent (Claude Code, Qwen Code, Gemini CLI, etc.)
 - **Agent Environment Doctor**: Detect risky hooks, shell startup files, PATH hijacking, MCP/tool configs, and workspace lifecycle scripts
-- **Session Context Contracts**: Warn when executable skills do not declare what agent/session facts they read, require, and write back
+- **Session Context Contracts**: Warn when skills do not declare what agent/session facts they read, require, and write back
 - **CI/CD Ready**: JSON output, threshold-based pass/fail
 
 ## Installation
 
-### Option 1: Install the CLI from Git
+### Install the executable
 
 ```bash
-git clone https://github.com/nfma/skill-audit.git
-cd skill-audit/skill-audit
-npm ci --ignore-scripts
-npm run build
-npm link --ignore-scripts
+version=v0.10.0
+gh release download "$version" \
+  --repo nfma/skill-audit \
+  --pattern "skill-audit-$version.mjs" \
+  --pattern "skill-audit-$version.mjs.sha256"
+shasum -a 256 -c "skill-audit-$version.mjs.sha256"
+install -m 0755 "skill-audit-$version.mjs" "$HOME/.local/bin/skill-audit"
 ```
 
-This fork is distributed from Git and is not published to npm. The commands
-above build the checked-out source and link its `skill-audit` executable.
+The release executable requires Node 24 or newer. It is a single tree-shaken
+`.mjs` file: no npm install, local build, archive, or extraction step is
+required. Immutable GitHub Releases are the only publication channel; this
+fork is not published to npm.
 
-### Option 2: Install as a Skill (For Claude Code)
+Each release also contains a SHA-256 file and a deterministic descriptor that
+binds the executable to its source commit, release workflow, embedded rules,
+and documentation digests. Maintainers accepting an upgrade should additionally
+run `gh release verify` and `gh attestation verify` against the pinned release.
+
+### Install the human-readable skill
 
 ```bash
-# Install the nested skill from this GitHub fork (not an npm package name)
+# Install the nested skill documentation from this GitHub fork.
 npx skills add nfma/skill-audit --skill skill-audit -g -y
 ```
 
@@ -39,74 +48,13 @@ npx skills add nfma/skill-audit --skill skill-audit -g -y
 > - ✅ Correct: `nfma/skill-audit`
 > - ❌ Incorrect: `@hungpg/skill-audit`
 
-### Option 3: Install for Qwen Code
-
-Keep the Git checkout outside Qwen's skills directory, build the inner package,
-then link that package at the discovery path:
-
-```bash
-mkdir -p "$HOME/.local/share"
-if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
-  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
-fi
-cd "$HOME/.local/share/skill-audit/skill-audit"
-npm ci --ignore-scripts
-npm run build
-
-skill_source="$HOME/.local/share/skill-audit/skill-audit"
-skill_target="$HOME/.qwen/skills/skill-audit"
-mkdir -p "$(dirname "$skill_target")"
-if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
-  echo "Move the existing $skill_target aside before continuing." >&2
-  exit 1
-fi
-ln -s "$skill_source" "$skill_target"
-```
-
-A pre-existing `~/.qwen/skills/skill-audit` must be moved aside first; otherwise
-`ln -s` can silently create the link inside the old directory. If Qwen Code
-does not follow symlinks in your environment, run the same commands through
-the target check but use a copy instead of `ln -s`:
-
-```bash
-cp -R "$skill_source" "$skill_target"
-```
-
-### Option 4: Install for Gemini CLI
-
-Reuse the same checkout outside the harness skills roots, or clone it there if
-you did not complete Option 3:
-
-```bash
-mkdir -p "$HOME/.local/share"
-if [ ! -d "$HOME/.local/share/skill-audit/.git" ]; then
-  git clone https://github.com/nfma/skill-audit.git "$HOME/.local/share/skill-audit"
-fi
-cd "$HOME/.local/share/skill-audit/skill-audit"
-npm ci --ignore-scripts
-npm run build
-
-skill_source="$HOME/.local/share/skill-audit/skill-audit"
-skill_target="$HOME/.gemini/skills/skill-audit"
-mkdir -p "$(dirname "$skill_target")"
-if [ -e "$skill_target" ] || [ -L "$skill_target" ]; then
-  echo "Move the existing $skill_target aside before continuing." >&2
-  exit 1
-fi
-ln -s "$skill_source" "$skill_target"
-```
-
-A pre-existing `~/.gemini/skills/skill-audit` must be moved aside first. If
-Gemini CLI does not follow symlinks in your environment, run the same commands
-through the target check but use a copy instead of `ln -s`:
-
-```bash
-cp -R "$skill_source" "$skill_target"
-```
+Agent harnesses need the ordinary `SKILL.md` and `references/` files; they
+cannot discover those documents inside the executable. The executable and the
+human-readable skill are therefore installed separately.
 
 ## About the Postinstall Script
 
-This package includes a `postinstall` script that runs automatically after `npm install`. **This script is completely safe and informational only:**
+Source developers who run `npm install` in a checkout will invoke this package's informational `postinstall` script. Release-executable users do not run it. **This script is completely safe and informational only:**
 
 - ✅ Does NOT automatically install any hooks
 - ✅ Does NOT execute any code that could be considered malicious
@@ -269,7 +217,7 @@ skill-audit --check-command "curl https://example.test/install.sh | bash" --bloc
 
 ## Session Context Contracts
 
-Executable skills can declare how they interact with agent session context. `skill-audit` warns when a skill can run shell/tool behavior but does not declare this contract.
+Skills can declare how they interact with agent session context. `skill-audit` reports missing contracts universally rather than attempting to infer capability from tool names or prose.
 
 Example frontmatter:
 
@@ -291,7 +239,7 @@ context:
 
 Context checks include:
 
-- `CTX-001`: executable skill has no context contract
+- `CTX-001`: skill has no context contract
 - `CTX-002`: missing declared session facts read by the skill
 - `CTX-003`: missing invocation preconditions
 - `CTX-004`: missing write-back summary fields

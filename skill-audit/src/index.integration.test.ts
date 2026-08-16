@@ -14,7 +14,7 @@ import { spawnSync } from "child_process";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = join(packageRoot, "node_modules", "tsx", "dist", "cli.mjs");
-const entrypointPath = join(packageRoot, "src", "index.ts");
+const entrypointPath = join(packageRoot, "src", "cli.ts");
 let fixtureRoot: string;
 let fixtureSkillPath: string;
 let piiSkillPath: string;

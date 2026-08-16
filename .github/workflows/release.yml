@@ -1,0 +1,241 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build release assets once
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      artifact-name: ${{ steps.identity.outputs.artifact_name }}
+      executable-sha256: ${{ steps.identity.outputs.executable_sha256 }}
+      descriptor-sha256: ${{ steps.identity.outputs.descriptor_sha256 }}
+      checksum-sha256: ${{ steps.identity.outputs.checksum_sha256 }}
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Verify tag, source commit, and package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_TYPE" = "tag"
+          test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$SOURCE_COMMIT"
+          test "v$(node -p 'require("./skill-audit/package.json").version')" = "$RELEASE_TAG"
+
+      - name: Install dependencies
+        working-directory: skill-audit
+        run: npm ci --ignore-scripts
+
+      - name: Test
+        working-directory: skill-audit
+        run: npm test
+
+      - name: Type-check
+        working-directory: skill-audit
+        run: npm run typecheck
+
+      - name: Build development output
+        working-directory: skill-audit
+        run: npm run build
+
+      - name: Build release assets exactly once
+        working-directory: skill-audit
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: npm run build:release
+
+      - name: Verify staged release assets
+        working-directory: skill-audit
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: npm run verify:release
+
+      - name: Record exact release identities
+        id: identity
+        working-directory: skill-audit
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          executable="release/skill-audit-$RELEASE_TAG.mjs"
+          descriptor="release/skill-audit-$RELEASE_TAG-release.json"
+          checksum="$executable.sha256"
+          {
+            echo "artifact_name=skill-audit-release-$SOURCE_COMMIT"
+            echo "executable_sha256=$(sha256sum "$executable" | cut -d ' ' -f 1)"
+            echo "descriptor_sha256=$(sha256sum "$descriptor" | cut -d ' ' -f 1)"
+            echo "checksum_sha256=$(sha256sum "$checksum" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the immutable handoff artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.identity.outputs.artifact_name }}
+          path: skill-audit/release/*
+          if-no-files-found: error
+          retention-days: 1
+
+  validate:
+    name: Validate exact bytes (${{ matrix.os }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install verification dependencies
+        working-directory: skill-audit
+        run: npm ci --ignore-scripts
+
+      - name: Build file-backed development modules
+        working-directory: skill-audit
+        run: npm run build
+
+      - name: Download the exact handoff artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: skill-audit/release
+
+      - name: Verify recorded artifact identities
+        working-directory: skill-audit
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          EXPECTED_EXECUTABLE_SHA256: ${{ needs.build.outputs.executable-sha256 }}
+          EXPECTED_DESCRIPTOR_SHA256: ${{ needs.build.outputs.descriptor-sha256 }}
+          EXPECTED_CHECKSUM_SHA256: ${{ needs.build.outputs.checksum-sha256 }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFileSync } from "node:fs";
+          const digest = path => createHash("sha256").update(readFileSync(path)).digest("hex");
+          const executable = `release/skill-audit-${process.env.RELEASE_TAG}.mjs`;
+          const descriptor = `release/skill-audit-${process.env.RELEASE_TAG}-release.json`;
+          if (digest(executable) !== process.env.EXPECTED_EXECUTABLE_SHA256) process.exit(1);
+          if (digest(descriptor) !== process.env.EXPECTED_DESCRIPTOR_SHA256) process.exit(1);
+          if (digest(`${executable}.sha256`) !== process.env.EXPECTED_CHECKSUM_SHA256) process.exit(1);
+          NODE
+
+      - name: Verify executable behavior and descriptor
+        working-directory: skill-audit
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: npm run verify:release
+
+  attest:
+    name: Attest exact release subjects
+    needs: [build, validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Download the exact handoff artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: release
+
+      - name: Attest executable and descriptor provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.1.1
+        with:
+          subject-path: |
+            release/*.mjs
+            release/*-release.json
+
+  publish:
+    name: Publish the validated GitHub Release
+    needs: [build, validate, attest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download the exact handoff artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: release
+
+      - name: Reverify exact bytes before publication
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          EXPECTED_EXECUTABLE_SHA256: ${{ needs.build.outputs.executable-sha256 }}
+          EXPECTED_DESCRIPTOR_SHA256: ${{ needs.build.outputs.descriptor-sha256 }}
+          EXPECTED_CHECKSUM_SHA256: ${{ needs.build.outputs.checksum-sha256 }}
+        run: |
+          set -euo pipefail
+          executable="release/skill-audit-$RELEASE_TAG.mjs"
+          descriptor="release/skill-audit-$RELEASE_TAG-release.json"
+          test "$(sha256sum "$executable" | cut -d ' ' -f 1)" = "$EXPECTED_EXECUTABLE_SHA256"
+          test "$(sha256sum "$descriptor" | cut -d ' ' -f 1)" = "$EXPECTED_DESCRIPTOR_SHA256"
+          test "$(sha256sum "$executable.sha256" | cut -d ' ' -f 1)" = "$EXPECTED_CHECKSUM_SHA256"
+
+      - name: Create the complete draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "release/skill-audit-$RELEASE_TAG.mjs" \
+            "release/skill-audit-$RELEASE_TAG.mjs.sha256" \
+            "release/skill-audit-$RELEASE_TAG-release.json" \
+            --draft \
+            --generate-notes \
+            --title "$RELEASE_TAG" \
+            --verify-tag
+
+      - name: Publish and verify the immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release edit "$RELEASE_TAG" --draft=false
+          gh release verify "$RELEASE_TAG"

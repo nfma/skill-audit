@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 import { parseBaselineArguments } from "./baseline-cli.mjs";
 
 const SCHEMA_VERSION = 1;
+const EXCLUDED_FINDING_FILES = new Set([
+  "skill-audit/src/generated/release-data.ts",
+]);
 
 function parseArguments(argv) {
   const options = parseBaselineArguments(argv, "--repo-root");
@@ -98,9 +101,9 @@ function normalizeReport(report, repoRoot) {
     }
   }
 
-  return [...grouped.values()].sort((left, right) =>
-    findingKey(left).localeCompare(findingKey(right)),
-  );
+  return [...grouped.values()]
+    .filter((finding) => !EXCLUDED_FINDING_FILES.has(finding.path))
+    .sort((left, right) => findingKey(left).localeCompare(findingKey(right)));
 }
 
 function scanErrorKey(error) {
