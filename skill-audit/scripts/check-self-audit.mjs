@@ -78,6 +78,10 @@ function normalizeFindingPath(file, skillRoot) {
 }
 
 function normalizeReport(report, skillRoot) {
+  return normalizeReportWithSummary(report, skillRoot).findings;
+}
+
+function normalizeReportWithSummary(report, skillRoot) {
   const results = Array.isArray(report) ? report : report.results;
   if (!Array.isArray(results)) {
     throw new TypeError(
@@ -85,32 +89,35 @@ function normalizeReport(report, skillRoot) {
     );
   }
 
-  return results
-    .flatMap((result) =>
-      FINDING_BUCKETS.flatMap((bucket) => {
-        const findings = result[bucket];
-        if (!Array.isArray(findings)) {
-          throw new TypeError(`Audit result is missing ${bucket}`);
-        }
-        return findings.map((finding) => ({
-          bucket,
-          id: finding.id,
-          category: finding.category,
-          asi: finding.asi,
-          severity: finding.severity,
-          file: normalizeFindingPath(finding.file, skillRoot),
-          message: finding.message,
-          evidenceSha256: hashEvidence(finding.evidence),
-        }));
-      }),
-    )
-    .filter(
-      (finding) =>
-        !EXCLUDED_FINDING_DIRECTORIES.some((directory) =>
-          finding.file.startsWith(directory),
-        ),
-    )
-    .sort(compareFindings);
+  const normalizedFindings = results.flatMap((result) =>
+    FINDING_BUCKETS.flatMap((bucket) => {
+      const findings = result[bucket];
+      if (!Array.isArray(findings)) {
+        throw new TypeError(`Audit result is missing ${bucket}`);
+      }
+      return findings.map((finding) => ({
+        bucket,
+        id: finding.id,
+        category: finding.category,
+        asi: finding.asi,
+        severity: finding.severity,
+        file: normalizeFindingPath(finding.file, skillRoot),
+        message: finding.message,
+        evidenceSha256: hashEvidence(finding.evidence),
+      }));
+    }),
+  );
+  const findings = normalizedFindings.filter(
+    (finding) =>
+      !EXCLUDED_FINDING_DIRECTORIES.some((directory) =>
+        finding.file.startsWith(directory),
+      ),
+  );
+
+  return {
+    excludedFindingCount: normalizedFindings.length - findings.length,
+    findings: findings.sort(compareFindings),
+  };
 }
 
 function compareFindings(left, right) {
@@ -220,7 +227,16 @@ function checkBaseline(actual, expected) {
 function main(argv) {
   const options = parseArguments(argv);
   const report = JSON.parse(readFileSync(options.reportPath, "utf8"));
-  const findings = normalizeReport(report, options.skillRoot);
+  const { excludedFindingCount, findings } = normalizeReportWithSummary(
+    report,
+    options.skillRoot,
+  );
+  const excludedFindingLabel =
+    excludedFindingCount === 1 ? "finding" : "findings";
+
+  console.log(
+    `Self-audit excluded ${excludedFindingCount} generated dist/ ${excludedFindingLabel} from baseline matching.`,
+  );
 
   if (options.writeBaseline) {
     const baseline = {

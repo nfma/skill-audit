@@ -34,12 +34,16 @@ function assertExternalActionsArePinned(workflow: Workflow) {
 
 function assertCheckoutCredentialsAreDisabled(workflow: Workflow) {
   let checked = 0;
-  const steps = workflow.content.split(/\n(?= {6}-\s+)/);
+  const steps = workflow.content.split(/\n(?=[ \t]*-\s)/);
   for (const step of steps.filter((value) =>
     value.includes("uses: actions/checkout@"),
   )) {
     checked += 1;
-    expect(step, workflow.name).toContain("persist-credentials: false");
+    const disablesPersistedCredentials = step.split("\n").some((line) => {
+      const uncommented = line.split("#", 1)[0].trim();
+      return uncommented === "persist-credentials: false";
+    });
+    expect(disablesPersistedCredentials, workflow.name).toBe(true);
   }
   return checked;
 }
@@ -74,14 +78,28 @@ describe("repository workflow hardening", () => {
   });
 
   it("rejects an action-only checkout step with persisted credentials", () => {
-    const fixture = {
-      name: "fixture.yml",
-      content:
-        "jobs:\n  test:\n    steps:\n" +
-        "      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd\n",
-    };
+    const fixtures = [
+      {
+        name: "comment-spoof.yml",
+        content:
+          "jobs:\n  test:\n    steps:\n" +
+          "      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd\n" +
+          "        # persist-credentials: false\n",
+      },
+      {
+        name: "four-space-indent.yml",
+        content:
+          "jobs:\n  test:\n    steps:\n" +
+          "    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd\n" +
+          "    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd\n" +
+          "      with:\n" +
+          "        persist-credentials: false\n",
+      },
+    ];
 
-    expect(() => assertCheckoutCredentialsAreDisabled(fixture)).toThrow();
+    for (const fixture of fixtures) {
+      expect(() => assertCheckoutCredentialsAreDisabled(fixture)).toThrow();
+    }
   });
 
   it("keeps distribution Git-only and makes self-audit baseline blocking", () => {
