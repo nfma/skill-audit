@@ -10,6 +10,8 @@
     "build": "node scripts/clean.cjs && npm run typecheck && tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
+    "format:check": "node scripts/check-format.mjs",
+    "lint:js": "eslint src scripts --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
     "security:update": "node dist/index.js --update-db",
     "test": "vitest run",
@@ -67,10 +69,16 @@
     "vite": "8.2.1"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "10.8.1",
+    "eslint-plugin-security": "4.0.1",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
     "tsx": "^4.7.0",
     "typescript": "^5.3.0",
+    "typescript-eslint": "8.67.0",
     "vitest": "^4.1.0"
   }
 }
