@@ -17,8 +17,6 @@ updates:
       - "nfma"
     commit-message:
       prefix: "deps"
-    labels:
-      - "dependencies"
     groups:
       npm-non-major:
         patterns:
@@ -42,9 +40,6 @@ updates:
       - "nfma"
     commit-message:
       prefix: "ci"
-    labels:
-      - "dependencies"
-      - "github-actions"
     groups:
       actions-non-major:
         patterns:
