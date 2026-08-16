@@ -202,6 +202,39 @@ describe("GitHub Release integrity boundary", () => {
     expect(releaseWorkflow).not.toContain("gh release verify");
   });
 
+  it("bounds draft verification retries and diagnoses every failure", () => {
+    expect(releaseWorkflow).toContain("max_attempts=6");
+    expect(releaseWorkflow).toContain(
+      "for ((attempt = 1; attempt <= max_attempts; attempt++)); do",
+    );
+    expect(releaseWorkflow).toContain("sleep_seconds=1");
+    expect(releaseWorkflow).toContain("sleep_seconds=$((sleep_seconds * 2))");
+    expect(releaseWorkflow).toContain(
+      "draft release asset verification failed after $max_attempts attempts",
+    );
+    expect(releaseWorkflow).toContain("observed=${observed(actual)}");
+    expect(releaseWorkflow).toContain("expected=${observed(expected)}");
+    expect(releaseWorkflow).toContain("release enumeration match count");
+    expect(releaseWorkflow).toContain("release draft state");
+    expect(releaseWorkflow).toContain("release assets type");
+    expect(releaseWorkflow).toContain("release asset count");
+    expect(releaseWorkflow).toContain("release asset name");
+    expect(releaseWorkflow).toContain(
+      'fail(`asset ${asset.name} state`, asset.state, "uploaded")',
+    );
+    expect(releaseWorkflow).toContain(
+      "fail(`asset ${asset.name} digest`, asset.digest, expectedDigest)",
+    );
+    expect(releaseWorkflow).toContain("missing release assets");
+    expect(releaseWorkflow).toContain("release enumeration API failed");
+    expect(releaseWorkflow).toContain("published release tag");
+    expect(releaseWorkflow).toContain("published release draft state");
+    expect(releaseWorkflow).toContain("published release immutable state");
+    expect(releaseWorkflow).toContain("published release assets type");
+    expect(releaseWorkflow).toContain("published release asset count");
+    expect(releaseWorkflow).toContain("published release lookup failed");
+  });
+
   it("repo-scopes gh commands in every checkout-less workflow job", () => {
     const workflowFiles = readdirSync(workflowDirectory).filter(
       (filename) => filename.endsWith(".yml") || filename.endsWith(".yaml"),
