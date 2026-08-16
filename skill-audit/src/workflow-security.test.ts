@@ -8,6 +8,10 @@ const workflow = readFileSync(
   join(packageRoot, "..", ".github", "workflows", "sonar.yml"),
   "utf8",
 );
+const dependabotWorkflow = readFileSync(
+  join(packageRoot, "..", ".github", "workflows", "dependabot-auto-merge.yml"),
+  "utf8",
+);
 
 function workflowStep(name: string): string {
   const marker = `      - name: ${name}\n`;
@@ -61,5 +65,34 @@ describe("Sonar workflow secret boundary", () => {
     expect(workflowStep("Scan and wait for the quality gate")).toContain(
       "-Dsonar.qualitygate.wait=true",
     );
+  });
+});
+
+describe("Dependabot auto-merge boundary", () => {
+  it("only accepts same-repository bot pull requests", () => {
+    expect(dependabotWorkflow).toContain("pull_request:");
+    expect(dependabotWorkflow).toContain(
+      "github.event.pull_request.user.login == 'dependabot[bot]'",
+    );
+    expect(dependabotWorkflow).toContain(
+      "github.event.pull_request.head.repo.full_name == github.repository",
+    );
+    expect(dependabotWorkflow).toContain(
+      "github.event.pull_request.draft == false",
+    );
+    expect(dependabotWorkflow).not.toContain("pull_request_target:");
+    expect(dependabotWorkflow).not.toContain("actions/checkout");
+    expect(dependabotWorkflow).not.toContain("secrets.");
+  });
+
+  it("grants only merge permissions and forces squash auto-merge", () => {
+    expect(dependabotWorkflow).toContain("permissions: {}");
+    expect(dependabotWorkflow).toContain(
+      "permissions:\n      contents: write\n      pull-requests: write",
+    );
+    expect(dependabotWorkflow).toContain(
+      'gh pr merge --repo "$GH_REPO" --auto --squash "$PR_NUMBER"',
+    );
+    expect(dependabotWorkflow).not.toMatch(/--merge\b|--rebase\b/);
   });
 });
