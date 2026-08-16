@@ -3,6 +3,8 @@ name: SonarQube Cloud
 on:
   pull_request:
     branches: [main, agent/security-hardening]
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main, agent/security-hardening]
 
