@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 2,
+  "findings": [
+    {
+      "bucket": "piiFindings",
+      "id": "PEX09",
+      "category": "PII",
+      "asi": "ASI02",
+      "severity": "high",
+      "file": "src/security.ts",
+      "message": "PII written to file - potential data staging",
+      "evidenceSha256": "b1fb78873132977b64b27490ddf1fd060fd180546befd7f7bdb813cfac4f7a37",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PEX10",
+      "category": "PII",
+      "asi": "ASI02",
+      "severity": "critical",
+      "file": "src/security.ts",
+      "message": "Vietnam CCCD exfiltration pattern",
+      "evidenceSha256": "b4ddc78e5c4077c9ad3a39be61556ec49fbce7e819b539115f304d04c8f04646",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PEX11",
+      "category": "PII",
+      "asi": "ASI02",
+      "severity": "critical",
+      "file": "src/security.ts",
+      "message": "Vietnam Tax ID exfiltration pattern",
+      "evidenceSha256": "5b4b3299fe68805dce42fe40dd102dbf53bd16fa9319ebcfa9b14ed10b1fa060",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-001",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "high",
+      "file": "src/security.test.ts",
+      "message": "Vietnam CCCD (Citizen ID) - 12 digits",
+      "evidenceSha256": "058158e21afb0c7c96450062637d2d2a4c2518d0a08d08b05079214fca70336e",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-008",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "medium",
+      "file": "src/security.test.ts",
+      "message": "Vietnam Military ID",
+      "evidenceSha256": "058158e21afb0c7c96450062637d2d2a4c2518d0a08d08b05079214fca70336e",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-010",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "critical",
+      "file": "src/index.integration.test.ts",
+      "message": "US Social Security Number (SSN)",
+      "evidenceSha256": "d8e670bcc10d62142fd6cd8c865d1f90e9ff40ecc7b6e8f78b5096affbaeca66",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-022",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "medium",
+      "file": "examples/example-audit-output.json",
+      "message": "Email Address",
+      "evidenceSha256": "6985852111bbb2f36be70a7eb32200c3c225a497791ec7989afdedd8cc80b038",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Documentation or example fixture intentionally demonstrates flagged content."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-022",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "medium",
+      "file": "examples/example-audit-output.json",
+      "message": "Email Address",
+      "evidenceSha256": "702809e6cb64fd45b14ed84c739d1af6041e84672fb4424ed109355381172bb8",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Documentation or example fixture intentionally demonstrates flagged content."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-022",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "medium",
+      "file": "scripts/test-audit.sh",
+      "message": "Email Address",
+      "evidenceSha256": "2b247bf07c00174b54e850bb79f8cf7b43b2e57739004d0de70badc40c921a31",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-022",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "medium",
+      "file": "src/index.integration.test.ts",
+      "message": "Email Address",
+      "evidenceSha256": "d8e670bcc10d62142fd6cd8c865d1f90e9ff40ecc7b6e8f78b5096affbaeca66",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-023",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "critical",
+      "file": "scripts/test-audit.sh",
+      "message": "OpenAI API Key",
+      "evidenceSha256": "3749ec8aa140de37e2725f52dbd50adfd20c89bb931070c6d00e086434c7f59c",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-023",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "critical",
+      "file": "scripts/test-audit.sh",
+      "message": "OpenAI API Key",
+      "evidenceSha256": "c0f010ac6936c98c633b36541ba09638afae8aac8cf44041334debcf244e4cc4",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "piiFindings",
+      "id": "PII-031",
+      "category": "PII",
+      "asi": "ASI03",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "PGP Private Key",
+      "evidenceSha256": "e4bf881b8d3664df1be28eccad8ffb3fdde5d8cd83f043bc018c41d8b4ed97cf",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CE-007",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "medium",
+      "file": "rules/default-patterns.json",
+      "message": "Subprocess with shell=True",
+      "evidenceSha256": "d0ca0c38bd2f8ff2a694aa4deee1259018f6eb43db2cafc25afea029592f2e64",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CE-007",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "medium",
+      "file": "src/security.ts",
+      "message": "Subprocess with shell=True",
+      "evidenceSha256": "b9c223ca40611681e511bb72c7021124f6b46b1db6eee4e81fdbc0ea9fb83574",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CE-008",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "high",
+      "file": "rules/default-patterns.json",
+      "message": "os.system() call - shell injection risk",
+      "evidenceSha256": "b0fb709a3f621f0f5a2739b934c1499d6c81758640109e378394e9a539f211d6",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CE-008",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "high",
+      "file": "src/security.ts",
+      "message": "os.system() call - shell injection risk",
+      "evidenceSha256": "c9727f288d2d41e51a407cd23730bb7bb6de672d73ea180bd39bb6d7f5bba6fa",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CE-021",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "Sudo usage",
+      "evidenceSha256": "9a28fe29e22f0ea62c3b4460f819a51f6d77a7646d1263eb6136ba72625472ba",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL-003",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": ".env file reference (potential secret exposure)",
+      "evidenceSha256": "c1d048109361804da39e97712f82df32067dbbb5fff899e562624063740faffc",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL-003",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "src/security.ts",
+      "message": ".env file reference (potential secret exposure)",
+      "evidenceSha256": "2045bf7da45206e41ec8457b5d8601dc7ca87d2d6772da7167d26b15fe9e5c03",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL-004",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "src/environment.test.ts",
+      "message": "Pipe to shell - code execution risk",
+      "evidenceSha256": "321bd306df5fa1fecff36895eab53b51561c0d7ecdfc446dd47a9c68799d9cad",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL-004",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "src/environment.test.ts",
+      "message": "Pipe to shell - code execution risk",
+      "evidenceSha256": "c138c39c215123517bec3c027574700a8af7bc514279ba4a0e7949165da3ad11",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL-004",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "src/environment.test.ts",
+      "message": "Pipe to shell - code execution risk",
+      "evidenceSha256": "f04fe335f9b08b579b9421069dd866ced3b8637f4a16aa7cba55366182b1d9e5",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "CL04",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "README.md (code block)",
+      "message": "Pipe to shell - code execution risk",
+      "evidenceSha256": "f179ce16aa14c5fbed79218ae38493b5c39d1803d5adec56924b57f43649e956",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Documentation or example fixture intentionally demonstrates flagged content."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "EX-002",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "critical",
+      "file": "src/security.test.ts",
+      "message": "API key in URL query string - exfiltration risk",
+      "evidenceSha256": "448ef9829dd83fb61ad426c0d6cda1363574b0a6d3fd3cc1a6492c1b5b270080",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "EX-006",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "File read + send exfiltration chain",
+      "evidenceSha256": "292afe4bf27e86ac1bb162144bf4d797e810f9fc604c697e8ea975228fbf6b5f",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "EX-006",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "critical",
+      "file": "src/security.ts",
+      "message": "File read + send exfiltration chain",
+      "evidenceSha256": "f064bb25c2c6c43167c356af2531ad0525b0023cc79476eed8bd8073a71bb596",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "SC-001",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "scripts/test-audit.sh",
+      "message": "OpenAI API key pattern",
+      "evidenceSha256": "3749ec8aa140de37e2725f52dbd50adfd20c89bb931070c6d00e086434c7f59c",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "SC-001",
+      "category": "SC",
+      "asi": "ASI04",
+      "severity": "critical",
+      "file": "scripts/test-audit.sh",
+      "message": "OpenAI API key pattern",
+      "evidenceSha256": "c0f010ac6936c98c633b36541ba09638afae8aac8cf44041334debcf244e4cc4",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "SQL-001",
+      "category": "CE",
+      "asi": "ASI06",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "SQL DROP TABLE",
+      "evidenceSha256": "01b656400d07b0376bfb4a809bd085a59ea7e297707024ab818ed7e79f77b45b",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "SQL-002",
+      "category": "CE",
+      "asi": "ASI06",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "SQL TRUNCATE TABLE",
+      "evidenceSha256": "63d00c64b102d33548f88223eead9a5ffa1f8e374e9af4e2c5b4e2782b59165d",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "SQL-003",
+      "category": "CE",
+      "asi": "ASI06",
+      "severity": "critical",
+      "file": "rules/default-patterns.json",
+      "message": "SQL DROP DATABASE",
+      "evidenceSha256": "ee7cead829653e56c946e83d9861bd8b3b9a7bd9752cd601aecf468d975a43c9",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "TM-001",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "high",
+      "file": "rules/default-patterns.json",
+      "message": "Potential data exfiltration pattern",
+      "evidenceSha256": "f0d2b17965ff13f20b64f1770bd2f3a3402661a3a251d83fccb80acb8955682a",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "TM-001",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "high",
+      "file": "src/security.ts",
+      "message": "Potential data exfiltration pattern",
+      "evidenceSha256": "4ba65b3c4e43bbc6593533ce6ed94fd6ccbbd03b2e69a26560792f4a2424d7e5",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "TM-003",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "high",
+      "file": "rules/default-patterns.json",
+      "message": "Setting sensitive environment variable",
+      "evidenceSha256": "3548e028a883680fbe7bb01d59b4ce50a7ebc86161e2b9ec42badfd8c371cc4f",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    },
+    {
+      "bucket": "securityFindings",
+      "id": "TM-003",
+      "category": "TM",
+      "asi": "ASI02",
+      "severity": "high",
+      "file": "src/security.ts",
+      "message": "Setting sensitive environment variable",
+      "evidenceSha256": "d64c7f2bf3dcbf5104dd04727844279ac4cb25cbbb69568c76c18051c19ad1db",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Detector definition intentionally contains the pattern it detects."
+      }
+    }
+  ]
+}

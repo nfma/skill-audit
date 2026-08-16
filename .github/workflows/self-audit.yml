@@ -1,0 +1,49 @@
+name: Self audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit skill-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: skill-audit/package-lock.json
+
+      - name: Install dependencies
+        working-directory: skill-audit
+        run: npm ci --ignore-scripts
+
+      - name: Build skill-audit
+        working-directory: skill-audit
+        run: npm run build
+
+      - name: Audit the repository skill
+        working-directory: skill-audit
+        run: |
+          node dist/index.js --path . --no-deps --json > "$RUNNER_TEMP/self-audit.json"
+          node scripts/check-self-audit.mjs \
+            --report "$RUNNER_TEMP/self-audit.json" \
+            --baseline ../.self-audit-baseline.json \
+            --skill-root .
