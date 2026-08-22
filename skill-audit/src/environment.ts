@@ -107,7 +107,7 @@ const SHELL_RULES: PatternRule[] = [
     severity: "critical",
     asi: "ASI05",
     message: "Reverse shell pattern in shell startup file",
-    pattern: /bash\s+-i\s+[^\n]*\/dev\/tcp|(?:nc|netcat)\s+-[elv]/i,
+    pattern: /\/dev\/tcp|(?:nc|netcat)\s+-[elv]/i,
   },
   {
     id: "ENV-SHELL-003",

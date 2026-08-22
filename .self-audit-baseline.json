@@ -185,6 +185,20 @@
     },
     {
       "bucket": "securityFindings",
+      "id": "CE-002",
+      "category": "CE",
+      "asi": "ASI05",
+      "severity": "critical",
+      "file": "src/environment.test.ts",
+      "message": "Bash reverse shell pattern",
+      "evidenceSha256": "860203322ad7d34432533c0f7f6a7c3c08758d93bae902207ad9516c95052ab5",
+      "review": {
+        "status": "reviewed",
+        "rationale": "Regression fixture intentionally contains malicious or PII sample data."
+      }
+    },
+    {
+      "bucket": "securityFindings",
       "id": "CE-007",
       "category": "CE",
       "asi": "ASI05",
@@ -303,7 +317,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "edacf6dc7035df86836f59134841c4699ba432d1c33c65ea4b31efe3fd7389ca",
+      "evidenceSha256": "860203322ad7d34432533c0f7f6a7c3c08758d93bae902207ad9516c95052ab5",
       "review": {
         "status": "reviewed",
         "rationale": "Regression fixture intentionally contains malicious or PII sample data."
