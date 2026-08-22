@@ -10,9 +10,9 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { basename, delimiter, dirname, join, resolve } from "node:path";
-import { createHash } from "node:crypto";
+import { homedir } from "os";
+import { basename, delimiter, dirname, join, resolve } from "path";
+import { createHash } from "crypto";
 import { Finding } from "./types.js";
 
 export interface EnvironmentDoctorResult {
