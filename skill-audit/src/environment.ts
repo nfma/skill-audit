@@ -9,10 +9,10 @@ import {
   readFileSync,
   statSync,
   writeFileSync,
-} from "fs";
-import { homedir } from "os";
-import { basename, delimiter, dirname, join, resolve } from "path";
-import { createHash } from "crypto";
+} from "node:fs";
+import { homedir } from "node:os";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
+import { createHash } from "node:crypto";
 import { Finding } from "./types.js";
 
 export interface EnvironmentDoctorResult {
@@ -107,7 +107,7 @@ const SHELL_RULES: PatternRule[] = [
     severity: "critical",
     asi: "ASI05",
     message: "Reverse shell pattern in shell startup file",
-    pattern: /(bash\s+-i\s+.*\/dev\/tcp|nc\s+-[elv]|netcat\s+-[elv])/i,
+    pattern: /bash\s+-i\s+[^\n]*\/dev\/tcp|(?:nc|netcat)\s+-[elv]/i,
   },
   {
     id: "ENV-SHELL-003",
@@ -195,7 +195,7 @@ const INSTRUCTION_RULES: PatternRule[] = [
     asi: "ASI05",
     message: "Agent instruction file mandates command execution",
     pattern:
-      /always\s+(run|execute)\s+(`[^`]+`|["'][^"']+["']|(?:npm|npx|bun|pnpm|curl|wget|bash|sh|python|git)\b[^\n]+)/i,
+      /always\s+(?:run|execute)\s+(?:[`"']|npm\b|npx\b|bun\b|pnpm\b|curl\b|wget\b|bash\b|sh\b|python\b|git\b)/i,
     recommendation:
       "Prefer conditional instructions with explicit user intent and safety checks.",
   },
@@ -244,11 +244,12 @@ const SENSITIVE_COMMAND_PATTERNS = [
   {
     reason: "agent config modification",
     pattern:
-      /(>|>>|tee\s+-a?)\s+.*(\.claude|\.qwen|\.gemini|\.amp|settings\.json|AGENTS\.md|CLAUDE\.md|QWEN\.md|GEMINI\.md)/i,
+      /(?:>>?|tee\s+-a?)\s+[^\n]{0,500}(?:\.claude|\.qwen|\.gemini|\.amp|settings\.json|AGENTS\.md|CLAUDE\.md|QWEN\.md|GEMINI\.md)/i,
   },
   {
     reason: "shell startup modification",
-    pattern: /(>|>>|tee\s+-a?)\s+.*(\.bashrc|\.zshrc|\.profile|config\.fish)/i,
+    pattern:
+      /(?:>>?|tee\s+-a?)\s+[^\n]{0,500}(?:\.bashrc|\.zshrc|\.profile|config\.fish)/i,
   },
   { reason: "executable permission change", pattern: /\bchmod\s+\+?x\b/i },
 ];
@@ -667,6 +668,24 @@ function riskLevel(score: number): EnvironmentDoctorResult["riskLevel"] {
   return "safe";
 }
 
+function riskIcon(level: EnvironmentDoctorResult["riskLevel"]): string {
+  switch (level) {
+    case "safe":
+      return "✅";
+    case "risky":
+      return "⚠️";
+    case "dangerous":
+      return "🔴";
+    case "malicious":
+      return "☠️";
+  }
+}
+
+function findingLocation(finding: Finding): string {
+  const path = displayPath(finding.file);
+  return finding.line ? `${path}:${finding.line}` : path;
+}
+
 export function reportEnvironmentDoctor(
   result: EnvironmentDoctorResult,
   options: { json?: boolean; verbose?: boolean; output?: string },
@@ -682,14 +701,7 @@ export function reportEnvironmentDoctor(
     return;
   }
 
-  const icon =
-    result.riskLevel === "safe"
-      ? "✅"
-      : result.riskLevel === "risky"
-        ? "⚠️"
-        : result.riskLevel === "dangerous"
-          ? "🔴"
-          : "☠️";
+  const icon = riskIcon(result.riskLevel);
   console.log("\n🩺 Agent Environment Doctor\n");
   console.log(`   Shell startup files: ${result.summary.shellFiles}`);
   console.log(`   Agent config files:  ${result.summary.agentConfigFiles}`);
@@ -706,9 +718,7 @@ export function reportEnvironmentDoctor(
     console.log(
       `   [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.message}`,
     );
-    console.log(
-      `      ${displayPath(finding.file)}${finding.line ? `:${finding.line}` : ""}`,
-    );
+    console.log(`      ${findingLocation(finding)}`);
     if (options.verbose && finding.recommendation) {
       console.log(`      Recommendation: ${finding.recommendation}`);
     }

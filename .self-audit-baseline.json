@@ -289,7 +289,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "321bd306df5fa1fecff36895eab53b51561c0d7ecdfc446dd47a9c68799d9cad",
+      "evidenceSha256": "4ddb8f4de72aed6ac4acbaba507adfe64462c1ec0f047eadde88bfbcd3276f5e",
       "review": {
         "status": "reviewed",
         "rationale": "Regression fixture intentionally contains malicious or PII sample data."
@@ -303,7 +303,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "c138c39c215123517bec3c027574700a8af7bc514279ba4a0e7949165da3ad11",
+      "evidenceSha256": "edacf6dc7035df86836f59134841c4699ba432d1c33c65ea4b31efe3fd7389ca",
       "review": {
         "status": "reviewed",
         "rationale": "Regression fixture intentionally contains malicious or PII sample data."
@@ -317,7 +317,7 @@
       "severity": "critical",
       "file": "src/environment.test.ts",
       "message": "Pipe to shell - code execution risk",
-      "evidenceSha256": "f04fe335f9b08b579b9421069dd866ced3b8637f4a16aa7cba55366182b1d9e5",
+      "evidenceSha256": "f80e268ed8ab2b37fc720d9bec6db0f341212bd24ee10f7b7337f864b5a8d823",
       "review": {
         "status": "reviewed",
         "rationale": "Regression fixture intentionally contains malicious or PII sample data."
