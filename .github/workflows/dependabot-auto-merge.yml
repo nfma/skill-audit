@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # Required to enable GitHub's auto-merge state.
+      pull-requests: write # Required to update the Dependabot pull request.
     steps:
       - name: Inspect Dependabot update
         id: metadata
@@ -31,7 +31,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Enable squash auto-merge
         if: >-
-          steps.metadata.outputs.package-ecosystem == 'npm' &&
+          steps.metadata.outputs.package-ecosystem == 'npm_and_yarn' &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor')
         env:
@@ -41,7 +41,7 @@ jobs:
         run: gh pr merge --repo "$GH_REPO" --auto --squash "$PR_NUMBER"
       - name: Explain manual review requirement
         if: >-
-          steps.metadata.outputs.package-ecosystem != 'npm' ||
+          steps.metadata.outputs.package-ecosystem != 'npm_and_yarn' ||
           (steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
           steps.metadata.outputs.update-type != 'version-update:semver-minor')
         env:
