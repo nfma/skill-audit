@@ -66,7 +66,7 @@
       "path": "skill-audit/src/environment.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "50556af6cb6a2f92f86c1ac5309b8182dcafdae8a31c60d74ea74638dcde054e",
+      "sourceSha256": "c48dcf1ad0fe549e21a712e114e2cb4bd773d5e8996dbb6250e95d80ca10e4f4",
       "count": 4,
       "review": {
         "status": "reviewed",
@@ -78,7 +78,7 @@
       "path": "skill-audit/src/environment.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "61b6b74b8389caaf23b24d3cf7ce5d7ab9ca16e8c228a370608e8f364e584727",
+      "sourceSha256": "992163d4c3369283e6b2c432a127ee600e4366657c04e5ee028c54066013d5ce",
       "count": 4,
       "review": {
         "status": "reviewed",
@@ -90,7 +90,7 @@
       "path": "skill-audit/src/environment.ts",
       "severity": "WARNING",
       "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
-      "sourceSha256": "9bf4ce6f9ce7536e5e1dd5049682d7f6f5da447af59ea038212878fd83556fa0",
+      "sourceSha256": "46ee16a191be6fcf24401f432c163b162795d3af7813a9d8e86be2387a33107d",
       "count": 1,
       "review": {
         "status": "reviewed",

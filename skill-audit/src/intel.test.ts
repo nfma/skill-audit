@@ -116,6 +116,40 @@ describe("streaming feed cancellation", () => {
   });
 });
 
+describe("fetch metrics", () => {
+  it("does not persist remote failure details", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response("remote failure", {
+            status: 503,
+            statusText: "REMOTE-CONTROLLED",
+          }),
+        ),
+      ),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const request = fetchKEV();
+    await vi.runAllTimersAsync();
+    await expect(request).resolves.toEqual([]);
+
+    const metricsText = vi
+      .mocked(writeFileSync)
+      .mock.calls.map(([, content]) => String(content))
+      .find((content) => content.includes('"errors"'));
+    expect(metricsText).toBeDefined();
+    const metrics = JSON.parse(metricsText ?? "{}") as {
+      errors?: string[];
+    };
+    expect(metrics.errors).toEqual(["kev: request failed"]);
+    expect(metrics.errors?.join(" ")).not.toContain("503");
+    expect(metrics.errors?.join(" ")).not.toContain("REMOTE-CONTROLLED");
+  });
+});
+
 describe("cache source boundaries", () => {
   it("rejects cache source names that could escape the feed directory", () => {
     expect(() => isCacheStale("../../outside")).toThrow(

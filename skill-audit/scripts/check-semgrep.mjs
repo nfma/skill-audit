@@ -58,6 +58,15 @@ function sourceHash(canonicalPath, startLine, endLine) {
     .digest("hex");
 }
 
+function normalizeCheckId(checkId) {
+  if (typeof checkId !== "string" || checkId.length === 0) {
+    throw new TypeError("Semgrep finding check_id must be a non-empty string");
+  }
+  return checkId.startsWith("semgrep.rules.")
+    ? checkId.slice("semgrep.rules.".length)
+    : checkId;
+}
+
 function findingKey(finding) {
   return JSON.stringify([
     finding.checkId,
@@ -81,7 +90,7 @@ function normalizeReport(report, repoRoot) {
       repoRoot,
     );
     const finding = {
-      checkId: result.check_id,
+      checkId: normalizeCheckId(result.check_id),
       path: relativePath,
       severity: result.extra?.severity,
       message: result.extra?.message,

@@ -595,8 +595,7 @@ export async function fetchKEV(
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    recordFetchResult("kev", 0, Date.now() - startTime, errorMsg);
+    recordFetchResult("kev", 0, Date.now() - startTime, "request failed");
     console.error(`KEV fetch failed:`, error);
     return [];
   }
@@ -649,8 +648,7 @@ export async function fetchEPSS(
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    recordFetchResult("epss", 0, Date.now() - startTime, errorMsg);
+    recordFetchResult("epss", 0, Date.now() - startTime, "request failed");
     console.error(`EPSS fetch failed:`, error);
     return [];
   }
@@ -792,8 +790,7 @@ export async function fetchNVD(
   } catch (error) {
     if (signal?.aborted) return [];
 
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    recordFetchResult("nvd", 0, Date.now() - startTime, errorMsg);
+    recordFetchResult("nvd", 0, Date.now() - startTime, "request failed");
     console.error(`NVD fetch failed:`, error);
     return [];
   }

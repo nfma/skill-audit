@@ -29,6 +29,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -40,12 +45,28 @@ jobs:
           ./skill-audit/scripts/install-linux-ci-tools.sh "$RUNNER_TEMP/ci-tools"
           echo "$RUNNER_TEMP/ci-tools" >> "$GITHUB_PATH"
 
+      - name: Test Semgrep rule-pack helper
+        run: python3 -m unittest tests/test_semgrep_packs.py
+
       - name: Run full Semgrep scan
         run: |
+          rules=".semgrep/rules"
           report="$RUNNER_TEMP/semgrep-results.json"
+          mkdir -p "$rules"
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --max-time 60 --max-filesize 8388608 \
+            --output "$rules/default.yml" \
+            https://semgrep.dev/c/p/default
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --max-time 60 --max-filesize 8388608 \
+            --output "$rules/security-audit.yml" \
+            https://semgrep.dev/c/p/security-audit
+          python3 scripts/semgrep_packs.py verify \
+            --manifest .semgrep/packs.lock.json \
+            --input-dir "$rules"
           uvx --no-build --from semgrep==1.173.0 semgrep scan \
-            --config p/default \
-            --config p/security-audit \
+            --config "$rules/default.yml" \
+            --config "$rules/security-audit.yml" \
             --jobs 1 \
             --timeout 0 \
             --timeout-threshold 0 \
