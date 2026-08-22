@@ -7,7 +7,7 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const workflowsRoot = join(packageRoot, "..", ".github", "workflows");
 const packageManifest = JSON.parse(
   readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as { private?: boolean };
+) as { engines?: { node?: string }; private?: boolean };
 const workflows = readdirSync(workflowsRoot)
   .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
   .map((name) => ({
@@ -48,6 +48,44 @@ function assertCheckoutCredentialsAreDisabled(workflow: Workflow) {
     });
     expect(disablesPersistedCredentials, workflow.name).toBe(true);
   }
+  return checked;
+}
+
+function minimumSupportedNodeMajor() {
+  const match = packageManifest.engines?.node?.match(/^>=(\d+)(?:\.\d+){0,2}$/);
+  if (!match) {
+    throw new Error(
+      "package.json must declare a simple minimum Node.js engine",
+    );
+  }
+
+  return Number(match[1]);
+}
+
+function assertSetupNodeVersionsMeetEngine(workflow: Workflow) {
+  let checked = 0;
+  const minimumMajor = minimumSupportedNodeMajor();
+  const steps = workflow.content.split(/\n(?=[ \t]*-\s)/);
+
+  for (const step of steps.filter((value) =>
+    value.includes("uses: actions/setup-node@"),
+  )) {
+    checked += 1;
+    const versionLine = step
+      .split("\n")
+      .map((line) => line.split("#", 1)[0].trim())
+      .find((line) => line.startsWith("node-version:"));
+    const version = versionLine?.match(/^node-version:\s*["']?(\d+)["']?$/);
+
+    expect(
+      version,
+      `${workflow.name}: ${versionLine ?? "missing node-version"}`,
+    ).toBeTruthy();
+    expect(Number(version?.[1]), workflow.name).toBeGreaterThanOrEqual(
+      minimumMajor,
+    );
+  }
+
   return checked;
 }
 
@@ -103,6 +141,28 @@ describe("repository workflow hardening", () => {
     for (const fixture of fixtures) {
       expect(() => assertCheckoutCredentialsAreDisabled(fixture)).toThrow();
     }
+  });
+
+  it("uses package-supported Node.js versions in every setup-node step", () => {
+    const checked = workflows.reduce(
+      (total, workflow) => total + assertSetupNodeVersionsMeetEngine(workflow),
+      0,
+    );
+
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("rejects setup-node versions below the package engine", () => {
+    const fixture = {
+      name: "old-node.yml",
+      content:
+        "jobs:\n  test:\n    steps:\n" +
+        "      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e\n" +
+        "        with:\n" +
+        "          node-version: 20\n",
+    };
+
+    expect(() => assertSetupNodeVersionsMeetEngine(fixture)).toThrow();
   });
 
   it("keeps distribution Git-only and makes self-audit baseline blocking", () => {
