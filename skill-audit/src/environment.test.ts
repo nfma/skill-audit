@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   chmodSync,
   existsSync,
@@ -12,6 +12,10 @@ import { join } from "path";
 import {
   assessShellCommand,
   diffEnvironmentBaseline,
+  reportCommandAssessment,
+  reportEnvironmentBaseline,
+  reportEnvironmentDiff,
+  reportEnvironmentDoctor,
   runEnvironmentDoctor,
   writeEnvironmentBaseline,
 } from "./environment.js";
@@ -26,6 +30,10 @@ function fixture() {
 }
 
 describe("runEnvironmentDoctor", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("detects agent hook commands and redacts secrets from evidence", () => {
     const { home, cwd } = fixture();
     mkdirSync(join(home, ".qwen"), { recursive: true });
@@ -165,5 +173,82 @@ describe("runEnvironmentDoctor", () => {
     );
     expect(remote.sensitive).toBe(true);
     expect(remote.reasons).toContain("remote script execution");
+  });
+
+  it("renders every environment report mode", () => {
+    const { root, home, cwd } = fixture();
+    const output = join(root, "environment.json");
+    const baselinePath = join(root, "baseline.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const base = runEnvironmentDoctor({ home, cwd, path: "" });
+    const finding = {
+      id: "ENV-TEST",
+      category: "ENV" as const,
+      asi: "ASI05",
+      severity: "medium" as const,
+      file: join(cwd, "AGENTS.md"),
+      line: 2,
+      message: "Reviewed report fixture",
+      recommendation: "Review the fixture.",
+    };
+    const risky = {
+      ...base,
+      findings: [finding],
+      riskScore: 4,
+      riskLevel: "risky" as const,
+    };
+
+    reportEnvironmentDoctor(risky, { verbose: true, output });
+    reportEnvironmentDoctor({ ...risky, riskLevel: "safe" }, { json: true });
+    reportEnvironmentDoctor(
+      { ...risky, riskLevel: "dangerous" },
+      { verbose: true },
+    );
+    reportEnvironmentDoctor(
+      { ...risky, riskLevel: "malicious", findings: Array(6).fill(finding) },
+      { verbose: false },
+    );
+    expect(existsSync(output)).toBe(true);
+
+    const baseline = { created: new Date(0).toISOString(), result: risky };
+    reportEnvironmentBaseline(baseline, baselinePath, {});
+    reportEnvironmentBaseline(baseline, baselinePath, { json: true });
+
+    const diff = {
+      baselinePath,
+      hasBaseline: true,
+      baseline,
+      current: risky,
+      addedFiles: [join(cwd, "added")],
+      removedFiles: [join(cwd, "removed")],
+      changedFiles: [join(cwd, "changed")],
+      addedFindings: [finding],
+      resolvedFindings: [finding],
+      drift: true,
+    };
+    reportEnvironmentDiff(diff, { verbose: true });
+    reportEnvironmentDiff(diff, { json: true });
+    reportEnvironmentDiff({ ...diff, hasBaseline: false }, {});
+    reportEnvironmentDiff({ ...diff, drift: false }, {});
+
+    reportCommandAssessment(
+      { command: "git status", sensitive: false, reasons: [] },
+      {},
+    );
+    reportCommandAssessment(
+      {
+        command: "reviewed command",
+        sensitive: true,
+        reasons: ["review fixture"],
+        environment: diff,
+      },
+      { verbose: true },
+    );
+    reportCommandAssessment(
+      { command: "git status", sensitive: false, reasons: [] },
+      { json: true },
+    );
+
+    expect(log).toHaveBeenCalled();
   });
 });
