@@ -65,7 +65,7 @@
   },
   "homepage": "https://github.com/nfma/skill-audit#readme",
   "dependencies": {
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "gray-matter": "^4.0.3",
     "semver": "^7.5.4"
   },
