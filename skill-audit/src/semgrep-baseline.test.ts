@@ -115,6 +115,23 @@ describe("Semgrep baseline checker", () => {
     );
   });
 
+  it("normalizes the namespace added when Registry packs are local files", () => {
+    const fixture = createFixture();
+    const writeResult = runChecker(fixture, ["--write-baseline"]);
+    expect(writeResult.status, writeResult.stderr).toBe(0);
+    markBaselineReviewed(fixture.baselinePath);
+    const report = JSON.parse(readFileSync(fixture.reportPath, "utf8"));
+    report.results[0].check_id = `semgrep.rules.${report.results[0].check_id}`;
+    writeFileSync(fixture.reportPath, JSON.stringify(report));
+
+    const result = runChecker(fixture);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(
+      "matches 1 reviewed finding groups (1 occurrence)",
+    );
+  });
+
   it.each([
     [
       "missing time metadata",
