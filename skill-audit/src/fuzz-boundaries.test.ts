@@ -1,4 +1,3 @@
-import { join, resolve } from "path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { isWithinRoot } from "./discover.js";
@@ -18,10 +17,12 @@ describe("fuzzed security boundaries", () => {
         fc.array(portableSegment, { minLength: 1, maxLength: 8 }),
         portableSegment,
         (segments, sibling) => {
-          const root = resolve("/", "skill-audit-fuzz-root");
-          expect(isWithinRoot(root, join(root, ...segments))).toBe(true);
+          const root = "/skill-audit-fuzz-root";
+          expect(isWithinRoot(root, `${root}/${segments.join("/")}`)).toBe(
+            true,
+          );
           expect(
-            isWithinRoot(root, resolve(root, "..", `sibling-${sibling}`)),
+            isWithinRoot(root, `/skill-audit-fuzz-sibling/${sibling}`),
           ).toBe(false);
         },
       ),
