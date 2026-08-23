@@ -1,0 +1,6 @@
+# Pre-existing format debt. Keep this list narrow until these files are
+# reformatted alongside the tests needed to preserve Sonar new-code coverage.
+skill-audit/src/deps.ts
+skill-audit/src/discover.ts
+skill-audit/src/reporter.ts
+skill-audit/src/scoring.ts
