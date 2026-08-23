@@ -181,7 +181,7 @@ export async function discoverSkills(scope: "global" | "project" = "global"): Pr
           if (scope === "project" && isGlobal) continue;
 
           // Validate and sanitize the path to prevent traversal
-          let safePath = skillData.path;
+          let safePath: string;
           try {
             safePath = resolveSkillPath(skillData.path);
           } catch {

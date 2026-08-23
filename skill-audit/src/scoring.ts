@@ -51,8 +51,6 @@ export function calculateRiskScore(findings: Finding[]): RiskScore {
   const asi: Record<string, number> = {};
   
   for (const finding of findings) {
-    const severityScore = SEVERITY_SCORES[finding.severity] || 1.0;
-    const categoryWeight = CATEGORY_WEIGHTS[finding.category] || 1.0;
     
     if (finding.severity in breakdown) {
       breakdown[finding.severity as keyof typeof breakdown]++;

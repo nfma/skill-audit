@@ -1,9 +1,8 @@
-import { execFileSync, execSync } from 'child_process';
-import { readdirSync, existsSync, realpathSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { resolve, relative, join } from 'path';
+import { execFileSync } from 'child_process';
+import { readdirSync, existsSync, realpathSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { resolveSkillPath } from './discover.js';
 import { Finding } from './types.js';
-import { tmpdir } from 'os';
 
 interface TrivyResult {
   Results?: Array<{
@@ -61,25 +60,6 @@ interface OSVQueryResponse {
     }>;
   }>;
 }
-
-// Map OSV ecosystem names to our package managers
-const OSV_ECOSYSTEMS: Record<string, string> = {
-  'npm': 'npm',
-  'PyPI': 'python',
-  'pypi': 'python',
-  'Go': 'go',
-  'crates.io': 'rust',
-  'Maven': 'java',
-  'maven': 'java',
-  'RubyGems': 'ruby',
-  'Packagist': 'php',
-  'Pub': 'dart',
-  'NuGet': 'dotnet',
-  'Hex': 'elixir',
-  'ConanCenter': 'cpp',
-  'Bioconductor': 'r',
-  'SwiftURL': 'swift',
-};
 
 // Supported lockfile patterns and their ecosystems
 const LOCKFILE_PATTERNS: Record<string, { ecosystem: string; parser: string }> = {

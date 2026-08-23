@@ -60,18 +60,6 @@ function categorizeFindings(findings: Finding[]): {
   };
 }
 
-// NEW: Format compliance report
-function formatComplianceReport(reports: ComplianceReport[]): string {
-  const lines: string[] = [];
-  
-  for (const report of reports) {
-    const icon = COMPLIANCE_ICONS[report.riskLevel] || "❓";
-    lines.push(`      ${icon} ${report.framework}: ${report.score}% (${report.passed}/${report.total} passed)`);
-  }
-  
-  return lines.join("\n");
-}
-
 export function reportResults(results: AuditResult[], options: any, complianceReports?: Map<string, ComplianceReport[]>): void {
   const byAgent = new Map<string, AuditResult[]>();
   for (const result of results) {
