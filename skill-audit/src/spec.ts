@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, realpathSync, statSync } from "fs";
-import { basename, join } from "path";
+import { join } from "path";
 import matter from "gray-matter";
 import { isWithinRoot } from "./discover.js";
 import { SkillManifest, Finding } from "./types.js";
