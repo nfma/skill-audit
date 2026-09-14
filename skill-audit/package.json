@@ -91,6 +91,6 @@
     "typescript": "6.0.3",
     "typescript-7": "npm:typescript@7.0.2",
     "typescript-eslint": "8.68.0",
-    "vitest": "^4.1.0"
+    "vitest": "^5.0.0"
   }
 }
